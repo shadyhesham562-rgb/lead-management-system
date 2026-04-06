@@ -1,51 +1,57 @@
-function getTodayString() {
-  return new Date().toISOString().split("T")[0];
-}
-
-function openWhatsApp(phone) {
-  const clean = String(phone || "").replace(/[^\d]/g, "");
-  if (!clean) return;
-  window.open(`https://wa.me/${clean}`, "_blank");
-}
-
 export default function LeadTable({
-  leads,
-  loading,
-  search,
+  leads = [],
+  loading = false,
+  search = "",
   setSearch,
-  statusFilter,
+  statusFilter = "All",
   setStatusFilter,
-  priorityFilter,
+  priorityFilter = "All",
   setPriorityFilter,
   onEdit,
   onDelete,
   onQuickUpdate,
   onExportCSV,
 }) {
-  const today = getTodayString();
+  const today = new Date().toISOString().split("T")[0];
 
   const hotCount = leads.filter((lead) => lead.priority === "Hot").length;
-  const todayCount = leads.filter(
-    (lead) => lead.nextFollowUp && lead.nextFollowUp === today
-  ).length;
+  const todayCount = leads.filter((lead) => lead.nextFollowUp === today).length;
   const overdueCount = leads.filter(
     (lead) => lead.nextFollowUp && lead.nextFollowUp < today
   ).length;
 
+  function clearFilters() {
+    setSearch?.("");
+    setStatusFilter?.("All");
+    setPriorityFilter?.("All");
+  }
+
+  function openWhatsApp(phone) {
+    if (!phone) return;
+    const cleanPhone = String(phone).replace(/[^\d+]/g, "");
+    window.open(`https://wa.me/${cleanPhone}`, "_blank");
+  }
+
+  function makeCall(phone) {
+    if (!phone) return;
+    window.location.href = `tel:${phone}`;
+  }
+
   return (
-    <>
+    <div style={styles.wrapper}>
       <div style={styles.filtersRow}>
         <input
           style={styles.searchInput}
+          type="text"
           placeholder="Search by company / contact / phone"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => setSearch?.(e.target.value)}
         />
 
         <select
           style={styles.select}
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => setStatusFilter?.(e.target.value)}
         >
           <option value="All">All Status</option>
           <option value="New">New</option>
@@ -56,7 +62,7 @@ export default function LeadTable({
         <select
           style={styles.select}
           value={priorityFilter}
-          onChange={(e) => setPriorityFilter(e.target.value)}
+          onChange={(e) => setPriorityFilter?.(e.target.value)}
         >
           <option value="All">All Priority</option>
           <option value="Hot">Hot</option>
@@ -64,27 +70,22 @@ export default function LeadTable({
           <option value="Cold">Cold</option>
         </select>
 
-        <button
-          style={styles.clearBtn}
-          onClick={() => {
-            setSearch("");
-            setStatusFilter("All");
-            setPriorityFilter("All");
-          }}
-        >
+        <button style={styles.clearBtn} onClick={clearFilters}>
           Clear Filters
         </button>
 
-        <button style={styles.exportBtn} onClick={onExportCSV}>
-          Export CSV
-        </button>
+        {onExportCSV ? (
+          <button style={styles.exportBtn} onClick={onExportCSV}>
+            Export CSV
+          </button>
+        ) : null}
       </div>
 
-      <div style={styles.badgesRow}>
-        <span style={styles.showingBadge}>Showing: {leads.length}</span>
-        <span style={styles.redBadge}>Hot: {hotCount}</span>
-        <span style={styles.orangeBadge}>Today: {todayCount}</span>
-        <span style={styles.redOutlineBadge}>Overdue: {overdueCount}</span>
+      <div style={styles.summaryRow}>
+        <div style={styles.summaryChip}>Showing: {leads.length}</div>
+        <div style={styles.summaryChipHot}>Hot: {hotCount}</div>
+        <div style={styles.summaryChipToday}>Today: {todayCount}</div>
+        <div style={styles.summaryChipOverdue}>Overdue: {overdueCount}</div>
       </div>
 
       <div style={styles.tableWrap}>
@@ -126,9 +127,9 @@ export default function LeadTable({
                   <td style={styles.td}>
                     <select
                       style={styles.inlineSelect}
-                      value={lead.status}
+                      value={lead.status || "New"}
                       onChange={(e) =>
-                        onQuickUpdate(lead.id, "status", e.target.value)
+                        onQuickUpdate?.(lead.id, "status", e.target.value)
                       }
                     >
                       <option value="New">New</option>
@@ -140,9 +141,9 @@ export default function LeadTable({
                   <td style={styles.td}>
                     <select
                       style={styles.inlineSelect}
-                      value={lead.priority}
+                      value={lead.priority || "Warm"}
                       onChange={(e) =>
-                        onQuickUpdate(lead.id, "priority", e.target.value)
+                        onQuickUpdate?.(lead.id, "priority", e.target.value)
                       }
                     >
                       <option value="Hot">Hot</option>
@@ -157,27 +158,35 @@ export default function LeadTable({
 
                   <td style={styles.td}>
                     <div style={styles.actions}>
-                      <button style={styles.editBtn} onClick={() => onEdit(lead)}>
+                      <button
+                        style={styles.editBtn}
+                        onClick={() => onEdit?.(lead)}
+                      >
                         Edit
                       </button>
 
                       <button
-                        style={styles.whatsappBtn}
+                        style={styles.whatsBtn}
                         onClick={() => openWhatsApp(lead.phone)}
                       >
                         WhatsApp
                       </button>
 
-                      <a style={styles.callBtn} href={`tel:${lead.phone || ""}`}>
-                        Call
-                      </a>
-
                       <button
-                        style={styles.deleteBtn}
-                        onClick={() => onDelete(lead.id)}
+                        style={styles.callBtn}
+                        onClick={() => makeCall(lead.phone)}
                       >
-                        Delete
+                        Call
                       </button>
+
+                      {onDelete ? (
+                        <button
+                          style={styles.deleteBtn}
+                          onClick={() => onDelete(lead.id)}
+                        >
+                          Delete
+                        </button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
@@ -186,91 +195,106 @@ export default function LeadTable({
           </tbody>
         </table>
       </div>
-    </>
+    </div>
   );
 }
 
 const styles = {
+  wrapper: {
+    width: "100%",
+  },
   filtersRow: {
     display: "flex",
-    gap: 10,
     flexWrap: "wrap",
+    gap: 10,
     marginBottom: 12,
     alignItems: "center",
   },
   searchInput: {
-    flex: 1,
-    minWidth: 240,
-    border: "1px solid rgba(255,255,255,0.12)",
+    flex: "1 1 320px",
+    minWidth: 220,
+    border: "1px solid rgba(255,255,255,0.10)",
     background: "#07142c",
     color: "#fff",
-    borderRadius: 8,
-    padding: "10px 12px",
+    borderRadius: 10,
+    padding: "12px 14px",
+    outline: "none",
   },
   select: {
-    minWidth: 120,
-    border: "1px solid rgba(255,255,255,0.12)",
+    border: "1px solid rgba(255,255,255,0.10)",
     background: "#07142c",
     color: "#fff",
-    borderRadius: 8,
-    padding: "10px 12px",
+    borderRadius: 10,
+    padding: "12px 14px",
+    outline: "none",
+    minWidth: 130,
   },
   clearBtn: {
-    border: "1px solid rgba(255,255,255,0.12)",
+    border: "1px solid rgba(255,255,255,0.10)",
     background: "#233452",
     color: "#fff",
-    borderRadius: 8,
-    padding: "10px 12px",
+    borderRadius: 10,
+    padding: "12px 14px",
     cursor: "pointer",
+    fontWeight: 700,
   },
   exportBtn: {
     border: "none",
     background: "#16a34a",
     color: "#fff",
-    borderRadius: 8,
-    padding: "10px 12px",
+    borderRadius: 10,
+    padding: "12px 14px",
     cursor: "pointer",
     fontWeight: 700,
   },
-  badgesRow: {
+  summaryRow: {
     display: "flex",
-    gap: 10,
     flexWrap: "wrap",
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 14,
   },
-  showingBadge: {
-    background: "#0d2347",
+  summaryChip: {
+    background: "#0d1f3f",
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 999,
     padding: "8px 12px",
-    borderRadius: 10,
     fontSize: 13,
-    border: "1px solid rgba(255,255,255,0.12)",
+    fontWeight: 700,
   },
-  redBadge: {
-    background: "#4b1717",
+  summaryChipHot: {
+    background: "#4c1d1d",
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 999,
     padding: "8px 12px",
-    borderRadius: 10,
     fontSize: 13,
-    border: "1px solid rgba(255,255,255,0.12)",
+    fontWeight: 700,
   },
-  orangeBadge: {
-    background: "#6a4308",
+  summaryChipToday: {
+    background: "#6b4a08",
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 999,
     padding: "8px 12px",
-    borderRadius: 10,
     fontSize: 13,
-    border: "1px solid rgba(255,255,255,0.12)",
+    fontWeight: 700,
   },
-  redOutlineBadge: {
-    background: "#4b1717",
+  summaryChipOverdue: {
+    background: "#7f1d1d",
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 999,
     padding: "8px 12px",
-    borderRadius: 10,
     fontSize: 13,
-    border: "1px solid rgba(255,255,255,0.12)",
+    fontWeight: 700,
   },
   tableWrap: {
+    width: "100%",
     overflowX: "auto",
-    background: "#0a1a36",
-    border: "1px solid rgba(255,255,255,0.12)",
+    border: "1px solid rgba(255,255,255,0.10)",
     borderRadius: 14,
+    background: "#07142c",
   },
   table: {
     width: "100%",
@@ -279,67 +303,73 @@ const styles = {
   },
   th: {
     textAlign: "left",
-    padding: 14,
+    padding: "14px 12px",
+    background: "#162845",
+    color: "#fff",
     fontSize: 13,
-    borderBottom: "1px solid rgba(255,255,255,0.12)",
-    color: "#eef4ff",
-    whiteSpace: "nowrap",
+    fontWeight: 800,
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
   },
   td: {
-    padding: 14,
-    fontSize: 13,
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-    verticalAlign: "top",
+    padding: "12px",
+    color: "#fff",
+    borderBottom: "1px solid rgba(255,255,255,0.06)",
+    fontSize: 14,
+    verticalAlign: "middle",
+  },
+  emptyCell: {
+    padding: "20px",
+    textAlign: "center",
+    color: "#c9d8f5",
+    fontSize: 14,
   },
   inlineSelect: {
-    minWidth: 110,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "#07142c",
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "#0d1c37",
     color: "#fff",
     borderRadius: 8,
     padding: "8px 10px",
+    outline: "none",
   },
   actions: {
     display: "flex",
-    gap: 8,
     flexWrap: "wrap",
+    gap: 8,
   },
   editBtn: {
     border: "none",
     background: "#2563eb",
     color: "#fff",
-    borderRadius: 6,
-    padding: "7px 12px",
+    borderRadius: 8,
+    padding: "8px 12px",
     cursor: "pointer",
+    fontWeight: 700,
   },
-  whatsappBtn: {
+  whatsBtn: {
     border: "none",
     background: "#16a34a",
     color: "#fff",
-    borderRadius: 6,
-    padding: "7px 12px",
+    borderRadius: 8,
+    padding: "8px 12px",
     cursor: "pointer",
+    fontWeight: 700,
   },
   callBtn: {
-    display: "inline-block",
     border: "none",
-    background: "#7c3aed",
+    background: "#9333ea",
     color: "#fff",
-    borderRadius: 6,
-    padding: "7px 12px",
+    borderRadius: 8,
+    padding: "8px 12px",
     cursor: "pointer",
+    fontWeight: 700,
   },
   deleteBtn: {
     border: "none",
     background: "#dc2626",
     color: "#fff",
-    borderRadius: 6,
-    padding: "7px 12px",
+    borderRadius: 8,
+    padding: "8px 12px",
     cursor: "pointer",
-  },
-  emptyCell: {
-    textAlign: "center",
-    padding: 28,
-    color: "#d3def5",
+    fontWeight: 700,
   },
 };
