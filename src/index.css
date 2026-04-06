@@ -1,0 +1,27 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+.crm-btn {
+  transition: all 0.2s ease;
+}
+
+.crm-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+
+.crm-table-row {
+  transition: background 0.2s ease;
+}
+
+.crm-table-row:hover {
+  background: #172036 !important;
+}
