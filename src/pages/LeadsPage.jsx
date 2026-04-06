@@ -5,8 +5,6 @@ import LeadForm from "../components/LeadForm";
 import LeadTable from "../components/LeadTable";
 import { supabase } from "../supabaseClient.js";
 
-const ACTIVITY_KEY = "crm_activity_v2";
-
 function getTodayString() {
   return new Date().toISOString().split("T")[0];
 }
@@ -41,38 +39,35 @@ function buildPayload(leadData, ownerUserId) {
   };
 }
 
+function formatActivityTime(value) {
+  if (!value) return "";
+  return new Date(value).toLocaleString();
+}
+
 export default function LeadsPage() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingLead, setEditingLead] = useState(null);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [priorityFilter, setPriorityFilter] = useState("All");
   const [quickFilter, setQuickFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("All");
+
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
   const [currentRole, setCurrentRole] = useState("sales");
   const [currentUserName, setCurrentUserName] = useState("User");
   const [ownersMap, setOwnersMap] = useState({});
-  const [activityLog, setActivityLog] = useState(() => {
-    try {
-      const saved = localStorage.getItem(ACTIVITY_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [activityLog, setActivityLog] = useState([]);
 
   useEffect(() => {
-    loadLeads();
+    loadPageData();
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activityLog));
-  }, [activityLog]);
 
   async function getViewerContext() {
     const {
@@ -121,7 +116,22 @@ export default function LeadsPage() {
     return map;
   }
 
-  async function loadLeads() {
+  async function loadActivities() {
+    const { data, error } = await supabase
+      .from("lead_activities")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (error) {
+      console.error("Load activities error:", error);
+      return;
+    }
+
+    setActivityLog(data || []);
+  }
+
+  async function loadPageData() {
     setLoading(true);
     setErrorMessage("");
 
@@ -131,6 +141,7 @@ export default function LeadsPage() {
       setCurrentRole("sales");
       setCurrentUserName("User");
       setLeads([]);
+      setActivityLog([]);
       setLoading(false);
       return;
     }
@@ -153,17 +164,31 @@ export default function LeadsPage() {
     }
 
     setLeads((data || []).map((row) => dbToLead(row, owners)));
+    await loadActivities();
     setLoading(false);
   }
 
-  function addActivity(text) {
-    const item = {
-      id: Date.now(),
-      text,
-      time: new Date().toLocaleString(),
-    };
+  async function addActivity({ leadId = null, actorName = "User", actionType, details }) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    setActivityLog((prev) => [item, ...prev].slice(0, 20));
+    const { error } = await supabase.from("lead_activities").insert([
+      {
+        lead_id: leadId,
+        actor_user_id: user?.id || null,
+        actor_name: actorName,
+        action_type: actionType,
+        details,
+      },
+    ]);
+
+    if (error) {
+      console.error("Add activity error:", error);
+      return;
+    }
+
+    await loadActivities();
   }
 
   function handleOpenAdd() {
@@ -240,7 +265,13 @@ export default function LeadsPage() {
           prev.map((lead) => (lead.id === editingLead.id ? updatedLead : lead))
         );
 
-        addActivity(`Updated lead for ${updatedLead.company || updatedLead.contact}`);
+        await addActivity({
+          leadId: updatedLead.id,
+          actorName: context.fullName || "User",
+          actionType: "update",
+          details: `Updated lead for ${updatedLead.company || updatedLead.contact}`,
+        });
+
         setSuccessMessage("Lead updated successfully");
       } else {
         const { data, error } = await supabase
@@ -258,7 +289,14 @@ export default function LeadsPage() {
         const newLead = dbToLead(data, ownersMap);
 
         setLeads((prev) => [newLead, ...prev]);
-        addActivity(`Added lead for ${newLead.company || newLead.contact}`);
+
+        await addActivity({
+          leadId: newLead.id,
+          actorName: context.fullName || "User",
+          actionType: "insert",
+          details: `Added lead for ${newLead.company || newLead.contact}`,
+        });
+
         setSuccessMessage("Lead added successfully");
       }
 
@@ -301,11 +339,16 @@ export default function LeadsPage() {
     }
 
     setLeads((prev) => prev.filter((lead) => lead.id !== id));
-    addActivity(
-      `Deleted lead for ${
+
+    await addActivity({
+      leadId: id,
+      actorName: context.fullName || "User",
+      actionType: "delete",
+      details: `Deleted lead for ${
         leadToDelete?.company || leadToDelete?.contact || "Unknown"
-      }`
-    );
+      }`,
+    });
+
     setSuccessMessage("Lead deleted successfully");
   }
 
@@ -339,7 +382,12 @@ export default function LeadsPage() {
       prev.map((item) => (item.id === id ? updatedLead : item))
     );
 
-    addActivity(`Updated ${field} for ${updatedLead.company || updatedLead.contact}`);
+    await addActivity({
+      leadId: updatedLead.id,
+      actorName: context.fullName || "User",
+      actionType: "quick_update",
+      details: `Updated ${field} for ${updatedLead.company || updatedLead.contact}`,
+    });
   }
 
   const ownerOptions = useMemo(() => {
@@ -456,15 +504,8 @@ export default function LeadsPage() {
         <div style={styles.activityHeader}>
           <div>
             <h3 style={styles.activityTitle}>Recent Activity</h3>
-            <div style={styles.activitySub}>Latest CRM actions</div>
+            <div style={styles.activitySub}>Latest CRM actions from all users</div>
           </div>
-
-          <button
-            style={styles.clearActivityBtn}
-            onClick={() => setActivityLog([])}
-          >
-            Clear Activity
-          </button>
         </div>
 
         <div style={styles.activityList}>
@@ -473,8 +514,12 @@ export default function LeadsPage() {
           ) : (
             activityLog.map((item) => (
               <div key={item.id} style={styles.activityItem}>
-                <div style={styles.activityText}>{item.text}</div>
-                <div style={styles.activityTime}>{item.time}</div>
+                <div style={styles.activityText}>{item.details}</div>
+                <div style={styles.activityMeta}>
+                  <span>{item.actor_name || "Unknown"}</span>
+                  <span>•</span>
+                  <span>{formatActivityTime(item.created_at)}</span>
+                </div>
               </div>
             ))
           )}
@@ -571,14 +616,6 @@ const styles = {
     fontSize: 12,
     color: "#c9d8f5",
   },
-  clearActivityBtn: {
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "#233452",
-    color: "#fff",
-    borderRadius: 8,
-    padding: "8px 12px",
-    cursor: "pointer",
-  },
   activityList: {
     display: "grid",
     gap: 10,
@@ -598,9 +635,12 @@ const styles = {
   activityText: {
     fontSize: 14,
     fontWeight: 700,
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  activityTime: {
+  activityMeta: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
     fontSize: 12,
     color: "#c9d8f5",
   },
