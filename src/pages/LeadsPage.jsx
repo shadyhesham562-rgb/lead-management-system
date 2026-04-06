@@ -110,7 +110,10 @@ export default function LeadsPage() {
     setCurrentUser(context.user);
     setCurrentRole(context.role);
 
-    let query = supabase.from("leads").select("*").order("id", { ascending: false });
+    let query = supabase
+      .from("leads")
+      .select("*")
+      .order("id", { ascending: false });
 
     if (context.role !== "admin") {
       query = query.eq("user_id", context.user.id);
@@ -217,7 +220,9 @@ export default function LeadsPage() {
           prev.map((lead) => (lead.id === editingLead.id ? updatedLead : lead))
         );
 
-        addActivity(`Updated lead for ${updatedLead.company || updatedLead.contact}`);
+        addActivity(
+          `Updated lead for ${updatedLead.company || updatedLead.contact}`
+        );
         setSuccessMessage("Lead updated successfully");
       } else {
         const { data, error } = await supabase
@@ -247,7 +252,9 @@ export default function LeadsPage() {
   }
 
   async function handleDeleteLead(id) {
-    const confirmDelete = window.confirm("Are you sure you want to delete this lead?");
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this lead?"
+    );
     if (!confirmDelete) return;
 
     setErrorMessage("");
@@ -278,7 +285,9 @@ export default function LeadsPage() {
 
     setLeads((prev) => prev.filter((lead) => lead.id !== id));
     addActivity(
-      `Deleted lead for ${leadToDelete?.company || leadToDelete?.contact || "Unknown"}`
+      `Deleted lead for ${
+        leadToDelete?.company || leadToDelete?.contact || "Unknown"
+      }`
     );
     setSuccessMessage("Lead deleted successfully");
   }
@@ -317,7 +326,9 @@ export default function LeadsPage() {
       prev.map((item) => (item.id === id ? updatedLead : item))
     );
 
-    addActivity(`Updated ${field} for ${updatedLead.company || updatedLead.contact}`);
+    addActivity(
+      `Updated ${field} for ${updatedLead.company || updatedLead.contact}`
+    );
   }
 
   const filteredLeads = useMemo(() => {
@@ -397,7 +408,9 @@ export default function LeadsPage() {
       )}
 
       {errorMessage ? <div style={styles.errorBox}>{errorMessage}</div> : null}
-      {successMessage ? <div style={styles.successBox}>{successMessage}</div> : null}
+      {successMessage ? (
+        <div style={styles.successBox}>{successMessage}</div>
+      ) : null}
 
       <DashboardCards leads={leads} />
 
@@ -446,9 +459,9 @@ export default function LeadsPage() {
         priorityFilter={priorityFilter}
         setPriorityFilter={setPriorityFilter}
         onEdit={handleOpenEdit}
-        onDelete={handleDeleteLead}
+        onDelete={currentRole === "admin" ? handleDeleteLead : null}
         onQuickUpdate={handleQuickUpdate}
-        onExportCSV={exportCsv}
+        onExportCSV={currentRole === "admin" ? exportCsv : null}
       />
 
       <LeadForm
