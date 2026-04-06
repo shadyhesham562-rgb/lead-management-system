@@ -58,9 +58,9 @@ export default function Login() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.bgGlowOne} />
-      <div style={styles.bgGlowTwo} />
-      <div style={styles.bgGrid} />
+      <div style={styles.goldGlowTop} />
+      <div style={styles.goldGlowBottom} />
+      <div style={styles.noise} />
 
       <div style={styles.wrapper}>
         <div style={styles.leftSide}>
@@ -70,57 +70,49 @@ export default function Login() {
             <div>
               <div style={styles.brandName}>INN CRM</div>
               <div style={styles.brandSub}>
-                Private lead management workspace for your team
+                Exclusive internal workspace for premium lead management
               </div>
             </div>
           </div>
 
           <div style={styles.heroCard}>
-            <div style={styles.badge}>Internal Team Portal</div>
+            <div style={styles.badge}>Luxury Internal Access</div>
 
             <h1 style={styles.heroTitle}>
-              A cleaner way to manage leads, follow-ups, and daily sales flow.
+              Premium CRM experience for high-control lead management.
             </h1>
 
             <p style={styles.heroText}>
-              Built for authorized INN users with a focused workspace, secure
-              access, and a smooth CRM experience.
+              A refined black-and-gold workspace built for authorized INN team
+              members to manage leads, follow-ups, and sales flow with clarity.
             </p>
 
-            <div style={styles.pillRow}>
-              <div style={styles.pill}>Lead Tracking</div>
-              <div style={styles.pill}>Private Access</div>
-              <div style={styles.pill}>Follow-up Flow</div>
-            </div>
-
-            <div style={styles.featurePanel}>
+            <div style={styles.featureGrid}>
               <div style={styles.featureCard}>
-                <div style={styles.featureDot} />
-                <div>
-                  <div style={styles.featureTitle}>Focused Workspace</div>
-                  <div style={styles.featureText}>
-                    Keep your team working in one simple and organized place.
-                  </div>
+                <div style={styles.featureTitle}>Private Access</div>
+                <div style={styles.featureText}>
+                  Restricted access for approved team accounts only.
                 </div>
               </div>
 
               <div style={styles.featureCard}>
-                <div style={styles.featureDot} />
-                <div>
-                  <div style={styles.featureTitle}>Authorized Access</div>
-                  <div style={styles.featureText}>
-                    Only approved accounts can reach the CRM and its data.
-                  </div>
+                <div style={styles.featureTitle}>Elegant Workflow</div>
+                <div style={styles.featureText}>
+                  Cleaner structure for daily lead handling and follow-up.
                 </div>
               </div>
 
               <div style={styles.featureCard}>
-                <div style={styles.featureDot} />
-                <div>
-                  <div style={styles.featureTitle}>Sales Visibility</div>
-                  <div style={styles.featureText}>
-                    Track leads, update status, and keep follow-ups moving.
-                  </div>
+                <div style={styles.featureTitle}>Focused Visibility</div>
+                <div style={styles.featureText}>
+                  A premium dashboard experience with less clutter and more control.
+                </div>
+              </div>
+
+              <div style={styles.featureCard}>
+                <div style={styles.featureTitle}>Secure Operations</div>
+                <div style={styles.featureText}>
+                  Designed for internal use with controlled login access.
                 </div>
               </div>
             </div>
@@ -129,12 +121,12 @@ export default function Login() {
 
         <div style={styles.rightSide}>
           <div style={styles.loginCard}>
-            <div style={styles.loginTopLine} />
+            <div style={styles.topGoldLine} />
             <div style={styles.loginMiniLogo}>INN</div>
 
             <h2 style={styles.loginTitle}>Welcome Back</h2>
             <p style={styles.loginSubtitle}>
-              Sign in with your authorized team email
+              Sign in using your authorized team account
             </p>
 
             <form onSubmit={handleLogin} style={styles.form}>
@@ -168,7 +160,7 @@ export default function Login() {
             {message ? <div style={styles.message}>{message}</div> : null}
 
             <div style={styles.footerNote}>
-              Authorized accounts only · INN Internal CRM
+              Authorized accounts only · INN Premium CRM
             </div>
           </div>
         </div>
@@ -177,46 +169,50 @@ export default function Login() {
   );
 }
 
+const gold = "#d4af37";
+const softGold = "#f3d27a";
+const darkGold = "#8f6a17";
+
 const styles = {
   page: {
     minHeight: "100vh",
     position: "relative",
     overflow: "hidden",
     background:
-      "linear-gradient(135deg, #061224 0%, #08182f 35%, #091329 70%, #030b16 100%)",
-    color: "#fff",
+      "radial-gradient(circle at top left, rgba(212,175,55,0.10), transparent 24%), linear-gradient(135deg, #050505 0%, #0a0a0a 45%, #12100b 100%)",
+    color: "#f8f4ea",
     padding: 24,
   },
-  bgGlowOne: {
+  goldGlowTop: {
     position: "absolute",
     top: -120,
-    left: -80,
+    left: -100,
     width: 420,
     height: 420,
     borderRadius: "50%",
-    background: "radial-gradient(circle, rgba(37,99,235,0.30), transparent 68%)",
-    filter: "blur(18px)",
+    background: "radial-gradient(circle, rgba(212,175,55,0.22), transparent 68%)",
+    filter: "blur(26px)",
     pointerEvents: "none",
   },
-  bgGlowTwo: {
+  goldGlowBottom: {
     position: "absolute",
-    bottom: -140,
+    bottom: -160,
     right: -120,
-    width: 460,
-    height: 460,
+    width: 520,
+    height: 520,
     borderRadius: "50%",
-    background: "radial-gradient(circle, rgba(59,130,246,0.18), transparent 70%)",
-    filter: "blur(24px)",
+    background: "radial-gradient(circle, rgba(243,210,122,0.12), transparent 70%)",
+    filter: "blur(30px)",
     pointerEvents: "none",
   },
-  bgGrid: {
+  noise: {
     position: "absolute",
     inset: 0,
-    backgroundImage:
-      "linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)",
-    backgroundSize: "36px 36px",
-    maskImage: "linear-gradient(to bottom, rgba(0,0,0,0.45), transparent 95%)",
+    opacity: 0.05,
     pointerEvents: "none",
+    backgroundImage:
+      "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)",
+    backgroundSize: "42px 42px",
   },
   wrapper: {
     position: "relative",
@@ -226,10 +222,10 @@ const styles = {
     flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 28,
+    gap: 30,
   },
   leftSide: {
-    flex: "1 1 700px",
+    flex: "1 1 720px",
     minWidth: 320,
   },
   rightSide: {
@@ -241,148 +237,129 @@ const styles = {
   brandRow: {
     display: "flex",
     alignItems: "center",
-    gap: 18,
+    gap: 20,
     flexWrap: "wrap",
-    marginBottom: 26,
+    marginBottom: 28,
   },
   logo: {
-    fontSize: 62,
+    fontSize: 64,
     fontWeight: 900,
-    letterSpacing: "5px",
+    letterSpacing: "6px",
     lineHeight: 1,
-    color: "#ffffff",
-    textShadow: "0 6px 24px rgba(37,99,235,0.22)",
+    color: softGold,
+    textShadow: "0 0 24px rgba(212,175,55,0.18)",
   },
   brandName: {
-    fontSize: 30,
-    fontWeight: 800,
+    fontSize: 32,
+    fontWeight: 900,
+    color: "#fff7dc",
     marginBottom: 6,
   },
   brandSub: {
     fontSize: 16,
-    color: "#c7d7f3",
+    color: "#d9cfb3",
   },
   heroCard: {
     maxWidth: 860,
-    background: "rgba(8, 24, 49, 0.72)",
-    border: "1px solid rgba(255,255,255,0.10)",
-    borderRadius: 28,
-    padding: 32,
-    boxShadow: "0 24px 80px rgba(0,0,0,0.30)",
+    background: "linear-gradient(145deg, rgba(18,18,18,0.92), rgba(8,8,8,0.82))",
+    border: "1px solid rgba(212,175,55,0.22)",
+    borderRadius: 30,
+    padding: 34,
+    boxShadow: "0 30px 90px rgba(0,0,0,0.42)",
     backdropFilter: "blur(12px)",
   },
   badge: {
     display: "inline-block",
     padding: "10px 16px",
     borderRadius: 999,
-    background: "rgba(37,99,235,0.16)",
-    border: "1px solid rgba(147,197,253,0.18)",
-    color: "#dbeafe",
+    background: "rgba(212,175,55,0.10)",
+    border: "1px solid rgba(212,175,55,0.24)",
+    color: "#f6e6ae",
     fontSize: 13,
-    fontWeight: 700,
-    marginBottom: 20,
+    fontWeight: 800,
+    letterSpacing: "0.4px",
+    marginBottom: 22,
   },
   heroTitle: {
     margin: 0,
-    fontSize: 34,
+    fontSize: 38,
     fontWeight: 900,
-    lineHeight: 1.3,
+    lineHeight: 1.25,
     maxWidth: 720,
+    color: "#fff8e5",
   },
   heroText: {
-    margin: "16px 0 0",
+    margin: "18px 0 0",
     fontSize: 17,
     lineHeight: 1.8,
-    color: "#c7d7f3",
-    maxWidth: 720,
+    color: "#d2c6a8",
+    maxWidth: 730,
   },
-  pillRow: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 12,
-    marginTop: 24,
-    marginBottom: 24,
-  },
-  pill: {
-    padding: "10px 16px",
-    borderRadius: 999,
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    fontSize: 14,
-    fontWeight: 700,
-    color: "#e7efff",
-  },
-  featurePanel: {
+  featureGrid: {
     display: "grid",
-    gap: 14,
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 16,
+    marginTop: 28,
   },
   featureCard: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 14,
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
+    background: "linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015))",
+    border: "1px solid rgba(212,175,55,0.14)",
     borderRadius: 20,
-    padding: 18,
-  },
-  featureDot: {
-    width: 12,
-    height: 12,
-    borderRadius: "50%",
-    marginTop: 7,
-    background: "linear-gradient(135deg, #60a5fa, #2563eb)",
-    boxShadow: "0 0 18px rgba(96,165,250,0.55)",
-    flexShrink: 0,
+    padding: 20,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
   },
   featureTitle: {
     fontSize: 18,
     fontWeight: 800,
-    marginBottom: 6,
+    color: "#f8e4a1",
+    marginBottom: 8,
   },
   featureText: {
     fontSize: 14,
     lineHeight: 1.7,
-    color: "#c7d7f3",
+    color: "#cdbf99",
   },
   loginCard: {
     width: "100%",
     maxWidth: 440,
-    background: "rgba(8, 24, 49, 0.82)",
-    border: "1px solid rgba(255,255,255,0.10)",
-    borderRadius: 28,
-    padding: 30,
-    boxShadow: "0 24px 80px rgba(0,0,0,0.34)",
+    background: "linear-gradient(180deg, rgba(14,14,14,0.95), rgba(8,8,8,0.92))",
+    border: "1px solid rgba(212,175,55,0.24)",
+    borderRadius: 30,
+    padding: 32,
+    boxShadow: "0 30px 90px rgba(0,0,0,0.46)",
     backdropFilter: "blur(14px)",
     position: "relative",
     overflow: "hidden",
   },
-  loginTopLine: {
+  topGoldLine: {
     position: "absolute",
     top: 0,
-    left: 24,
-    right: 24,
+    left: 28,
+    right: 28,
     height: 3,
     borderRadius: 999,
-    background: "linear-gradient(90deg, transparent, #3b82f6, transparent)",
+    background: `linear-gradient(90deg, transparent, ${gold}, ${softGold}, transparent)`,
   },
   loginMiniLogo: {
-    fontSize: 30,
+    fontSize: 32,
     fontWeight: 900,
-    letterSpacing: "3px",
+    letterSpacing: "4px",
     marginBottom: 18,
+    color: softGold,
   },
   loginTitle: {
     margin: 0,
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: 900,
-    lineHeight: 1.2,
+    lineHeight: 1.15,
+    color: "#fff8e5",
   },
   loginSubtitle: {
     margin: "10px 0 0",
-    color: "#c7d7f3",
+    color: "#d1c39d",
     fontSize: 15,
     lineHeight: 1.7,
-    marginBottom: 24,
+    marginBottom: 26,
   },
   form: {
     display: "grid",
@@ -390,49 +367,52 @@ const styles = {
   },
   inputGroup: {
     display: "grid",
-    gap: 8,
+    gap: 9,
   },
   label: {
     fontSize: 14,
-    color: "#e3eeff",
+    color: "#f3df9b",
     fontWeight: 700,
   },
   input: {
     width: "100%",
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(4, 15, 30, 0.72)",
+    border: "1px solid rgba(212,175,55,0.16)",
+    background: "rgba(5,5,5,0.74)",
     color: "#fff",
     borderRadius: 14,
     padding: "15px 16px",
     outline: "none",
     fontSize: 15,
     boxSizing: "border-box",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
   },
   primaryBtn: {
-    marginTop: 6,
+    marginTop: 8,
     border: "none",
-    background: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
-    color: "#fff",
+    background: `linear-gradient(135deg, ${gold}, ${darkGold})`,
+    color: "#120f06",
     borderRadius: 14,
     padding: "15px 16px",
     cursor: "pointer",
     fontWeight: 900,
     fontSize: 16,
-    boxShadow: "0 14px 28px rgba(37,99,235,0.28)",
+    boxShadow: "0 16px 32px rgba(212,175,55,0.20)",
   },
   message: {
     marginTop: 16,
-    background: "rgba(127,29,29,0.88)",
-    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(90, 25, 15, 0.82)",
+    border: "1px solid rgba(212,175,55,0.16)",
     padding: 13,
     borderRadius: 14,
     fontSize: 14,
     lineHeight: 1.6,
+    color: "#fff3d6",
   },
   footerNote: {
     marginTop: 20,
-    color: "#96add6",
+    color: "#a69569",
     fontSize: 12,
     textAlign: "center",
+    letterSpacing: "0.2px",
   },
 };
