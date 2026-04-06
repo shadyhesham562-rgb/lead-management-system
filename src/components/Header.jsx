@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 
-export default function Header({ onLogout }) {
+export default function Header({ onLogout, displayName = "User" }) {
   const [showPasswordBox, setShowPasswordBox] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -9,8 +9,13 @@ export default function Header({ onLogout }) {
   const [passwordMessage, setPasswordMessage] = useState("");
 
   const initials = useMemo(() => {
-    return "INN";
-  }, []);
+    return displayName
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+  }, [displayName]);
 
   async function handleChangePassword(e) {
     e.preventDefault();
@@ -70,6 +75,8 @@ export default function Header({ onLogout }) {
         </div>
 
         <div style={styles.rightSide}>
+          <div style={styles.nameTag}>{displayName}</div>
+
           <button
             style={styles.secondaryBtn}
             onClick={() => {
@@ -86,7 +93,7 @@ export default function Header({ onLogout }) {
             Logout
           </button>
 
-          <div style={styles.avatar}>{initials}</div>
+          <div style={styles.avatar}>{initials || "U"}</div>
         </div>
       </div>
 
@@ -194,6 +201,13 @@ const styles = {
     alignItems: "center",
     gap: 10,
     flexWrap: "wrap",
+  },
+  nameTag: {
+    background: "#162845",
+    color: "#fff",
+    borderRadius: 10,
+    padding: "10px 12px",
+    fontWeight: 700,
   },
   secondaryBtn: {
     border: "1px solid rgba(255,255,255,0.10)",
