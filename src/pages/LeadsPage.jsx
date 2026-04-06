@@ -192,16 +192,12 @@ export default function LeadsPage() {
       const payload = buildPayload(leadData, ownerUserId);
 
       if (editingLead) {
-        let updateQuery = supabase
+        const { data, error } = await supabase
           .from("leads")
           .update(payload)
-          .eq("id", editingLead.id);
-
-        if (context.role !== "admin") {
-          updateQuery = updateQuery.eq("user_id", context.user.id);
-        }
-
-        const { data, error } = await updateQuery.select("*").single();
+          .eq("id", editingLead.id)
+          .select("*")
+          .single();
 
         if (error) {
           console.error("Update error:", error);
@@ -260,15 +256,14 @@ export default function LeadsPage() {
       return;
     }
 
-    const leadToDelete = leads.find((lead) => lead.id === id);
-
-    let deleteQuery = supabase.from("leads").delete().eq("id", id);
-
     if (context.role !== "admin") {
-      deleteQuery = deleteQuery.eq("user_id", context.user.id);
+      setErrorMessage("Only admin can delete leads");
+      return;
     }
 
-    const { error } = await deleteQuery;
+    const leadToDelete = leads.find((lead) => lead.id === id);
+
+    const { error } = await supabase.from("leads").delete().eq("id", id);
 
     if (error) {
       console.error("Delete error:", error);
@@ -296,16 +291,12 @@ export default function LeadsPage() {
       return;
     }
 
-    let updateQuery = supabase
+    const { data, error } = await supabase
       .from("leads")
       .update({ [field]: value })
-      .eq("id", id);
-
-    if (context.role !== "admin") {
-      updateQuery = updateQuery.eq("user_id", context.user.id);
-    }
-
-    const { data, error } = await updateQuery.select("*").single();
+      .eq("id", id)
+      .select("*")
+      .single();
 
     if (error) {
       console.error("Quick update error:", error);
