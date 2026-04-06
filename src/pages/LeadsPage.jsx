@@ -22,7 +22,7 @@ function dbToLead(row) {
   };
 }
 
-function buildPayload(leadData, userId) {
+function buildPayload(leadData, ownerUserId) {
   return {
     company: leadData.company?.trim() || "",
     contact: leadData.contact?.trim() || "",
@@ -32,7 +32,7 @@ function buildPayload(leadData, userId) {
     notes: leadData.notes?.trim() || "",
     last_contact: leadData.lastContact || null,
     next_follow_up: leadData.nextFollowUp || null,
-    user_id: userId,
+    user_id: ownerUserId,
   };
 }
 
@@ -47,6 +47,8 @@ export default function LeadsPage() {
   const [priorityFilter, setPriorityFilter] = useState("All");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [currentRole, setCurrentRole] = useState("sales");
   const [activityLog, setActivityLog] = useState(() => {
     try {
       const saved = localStorage.getItem(ACTIVITY_KEY);
@@ -64,34 +66,57 @@ export default function LeadsPage() {
     localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activityLog));
   }, [activityLog]);
 
-  async function getCurrentUser() {
-    const { data, error } = await supabase.auth.getUser();
+  async function getViewerContext() {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-    if (error) {
-      console.error("Get user error:", error);
+    if (userError || !user) {
       return null;
     }
 
-    return data.user || null;
+    const { data: profile, error: profileError } = await supabase
+      .from("user_profiles")
+      .select("role, email")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error("Profile load error:", profileError);
+    }
+
+    return {
+      user,
+      role: profile?.role || "sales",
+      email: profile?.email || user.email || "",
+    };
   }
 
   async function loadLeads() {
     setLoading(true);
     setErrorMessage("");
 
-    const user = await getCurrentUser();
+    const context = await getViewerContext();
 
-    if (!user) {
+    if (!context) {
+      setCurrentUser(null);
+      setCurrentRole("sales");
       setLeads([]);
       setLoading(false);
       return;
     }
 
-    const { data, error } = await supabase
-      .from("leads")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("id", { ascending: false });
+    setCurrentUser(context.user);
+    setCurrentRole(context.role);
+
+    let query = supabase.from("leads").select("*").order("id", { ascending: false });
+
+    if (context.role !== "admin") {
+      query = query.eq("user_id", context.user.id);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("Load leads error:", error);
@@ -152,9 +177,9 @@ export default function LeadsPage() {
       return;
     }
 
-    const user = await getCurrentUser();
+    const context = await getViewerContext();
 
-    if (!user) {
+    if (!context) {
       setErrorMessage("You must be logged in");
       return;
     }
@@ -162,16 +187,23 @@ export default function LeadsPage() {
     setSaving(true);
 
     try {
-      const payload = buildPayload(leadData, user.id);
+      const ownerUserId = editingLead
+        ? editingLead.user_id || context.user.id
+        : context.user.id;
+
+      const payload = buildPayload(leadData, ownerUserId);
 
       if (editingLead) {
-        const { data, error } = await supabase
+        let updateQuery = supabase
           .from("leads")
           .update(payload)
-          .eq("id", editingLead.id)
-          .eq("user_id", user.id)
-          .select("*")
-          .single();
+          .eq("id", editingLead.id);
+
+        if (context.role !== "admin") {
+          updateQuery = updateQuery.eq("user_id", context.user.id);
+        }
+
+        const { data, error } = await updateQuery.select("*").single();
 
         if (error) {
           console.error("Update error:", error);
@@ -221,20 +253,22 @@ export default function LeadsPage() {
     setErrorMessage("");
     setSuccessMessage("");
 
-    const user = await getCurrentUser();
+    const context = await getViewerContext();
 
-    if (!user) {
+    if (!context) {
       setErrorMessage("You must be logged in");
       return;
     }
 
     const leadToDelete = leads.find((lead) => lead.id === id);
 
-    const { error } = await supabase
-      .from("leads")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
+    let deleteQuery = supabase.from("leads").delete().eq("id", id);
+
+    if (context.role !== "admin") {
+      deleteQuery = deleteQuery.eq("user_id", context.user.id);
+    }
+
+    const { error } = await deleteQuery;
 
     if (error) {
       console.error("Delete error:", error);
@@ -244,9 +278,7 @@ export default function LeadsPage() {
 
     setLeads((prev) => prev.filter((lead) => lead.id !== id));
     addActivity(
-      `Deleted lead for ${
-        leadToDelete?.company || leadToDelete?.contact || "Unknown"
-      }`
+      `Deleted lead for ${leadToDelete?.company || leadToDelete?.contact || "Unknown"}`
     );
     setSuccessMessage("Lead deleted successfully");
   }
@@ -255,20 +287,23 @@ export default function LeadsPage() {
     setErrorMessage("");
     setSuccessMessage("");
 
-    const user = await getCurrentUser();
+    const context = await getViewerContext();
 
-    if (!user) {
+    if (!context) {
       setErrorMessage("You must be logged in");
       return;
     }
 
-    const { data, error } = await supabase
+    let updateQuery = supabase
       .from("leads")
       .update({ [field]: value })
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .select("*")
-      .single();
+      .eq("id", id);
+
+    if (context.role !== "admin") {
+      updateQuery = updateQuery.eq("user_id", context.user.id);
+    }
+
+    const { data, error } = await updateQuery.select("*").single();
 
     if (error) {
       console.error("Quick update error:", error);
@@ -282,9 +317,7 @@ export default function LeadsPage() {
       prev.map((item) => (item.id === id ? updatedLead : item))
     );
 
-    addActivity(
-      `Updated ${field} for ${updatedLead.company || updatedLead.contact}`
-    );
+    addActivity(`Updated ${field} for ${updatedLead.company || updatedLead.contact}`);
   }
 
   const filteredLeads = useMemo(() => {
@@ -312,6 +345,7 @@ export default function LeadsPage() {
       "Last Contact",
       "Next Follow-up",
       "Notes",
+      "Owner User ID",
     ];
 
     const rows = filteredLeads.map((lead) => [
@@ -323,6 +357,7 @@ export default function LeadsPage() {
       lead.lastContact || "",
       lead.nextFollowUp || "",
       lead.notes || "",
+      lead.user_id || "",
     ]);
 
     const csvContent = [headers, ...rows]
@@ -345,7 +380,6 @@ export default function LeadsPage() {
   return (
     <div style={styles.page}>
       <Header
-        userLabel="SH"
         onLogout={async () => {
           try {
             await supabase.auth.signOut();
@@ -356,10 +390,14 @@ export default function LeadsPage() {
         }}
       />
 
+      {currentRole === "admin" ? (
+        <div style={styles.roleBox}>Logged in as Admin</div>
+      ) : (
+        <div style={styles.roleBox}>Logged in as Sales</div>
+      )}
+
       {errorMessage ? <div style={styles.errorBox}>{errorMessage}</div> : null}
-      {successMessage ? (
-        <div style={styles.successBox}>{successMessage}</div>
-      ) : null}
+      {successMessage ? <div style={styles.successBox}>{successMessage}</div> : null}
 
       <DashboardCards leads={leads} />
 
@@ -427,6 +465,15 @@ export default function LeadsPage() {
 const styles = {
   page: {
     padding: 14,
+  },
+  roleBox: {
+    background: "#1d4ed8",
+    color: "#fff",
+    padding: "10px 14px",
+    borderRadius: 12,
+    marginBottom: 16,
+    fontWeight: 700,
+    display: "inline-block",
   },
   errorBox: {
     background: "#7f1d1d",
