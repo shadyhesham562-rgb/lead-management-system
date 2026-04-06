@@ -8,6 +8,7 @@ const ALLOWED_EMAILS = [
   "hebasabry961@gmail.com",
   "inn360.co@gmail.com",
   "shadyhesham562@gmail.com",
+  "amiraelsaied242@gmail.com",
 ];
 
 export default function Login() {
