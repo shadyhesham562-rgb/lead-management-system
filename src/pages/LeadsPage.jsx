@@ -7,7 +7,7 @@ import { supabase } from "../supabaseClient.js";
 
 const ACTIVITY_KEY = "crm_activity_v2";
 
-function dbToLead(row, ownersMap = {}) {
+function dbToLead(row) {
   return {
     id: row.id,
     company: row.company || "",
@@ -19,7 +19,6 @@ function dbToLead(row, ownersMap = {}) {
     lastContact: row.last_contact || "",
     nextFollowUp: row.next_follow_up || "",
     user_id: row.user_id || null,
-    ownerName: ownersMap[row.user_id] || "Unknown",
   };
 }
 
@@ -48,10 +47,8 @@ export default function LeadsPage() {
   const [priorityFilter, setPriorityFilter] = useState("All");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
   const [currentRole, setCurrentRole] = useState("sales");
   const [currentUserName, setCurrentUserName] = useState("User");
-  const [ownersMap, setOwnersMap] = useState({});
   const [activityLog, setActivityLog] = useState(() => {
     try {
       const saved = localStorage.getItem(ACTIVITY_KEY);
@@ -81,7 +78,7 @@ export default function LeadsPage() {
 
     const { data: profile, error: profileError } = await supabase
       .from("user_profiles")
-      .select("role, email, full_name")
+      .select("role, full_name, email")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -92,28 +89,9 @@ export default function LeadsPage() {
     return {
       user,
       role: profile?.role || "sales",
-      email: profile?.email || user.email || "",
       fullName: profile?.full_name || "User",
+      email: profile?.email || user.email || "",
     };
-  }
-
-  async function loadOwnersMap() {
-    const { data, error } = await supabase
-      .from("user_profiles")
-      .select("id, full_name");
-
-    if (error) {
-      console.error("Owners map load error:", error);
-      return {};
-    }
-
-    const map = {};
-    (data || []).forEach((item) => {
-      map[item.id] = item.full_name || "Unknown";
-    });
-
-    setOwnersMap(map);
-    return map;
   }
 
   async function loadLeads() {
@@ -123,7 +101,6 @@ export default function LeadsPage() {
     const context = await getViewerContext();
 
     if (!context) {
-      setCurrentUser(null);
       setCurrentRole("sales");
       setCurrentUserName("User");
       setLeads([]);
@@ -131,22 +108,13 @@ export default function LeadsPage() {
       return;
     }
 
-    setCurrentUser(context.user);
     setCurrentRole(context.role);
     setCurrentUserName(context.fullName || "User");
 
-    const owners = await loadOwnersMap();
-
-    let query = supabase
+    const { data, error } = await supabase
       .from("leads")
       .select("*")
       .order("id", { ascending: false });
-
-    if (context.role !== "admin") {
-      query = query.eq("user_id", context.user.id);
-    }
-
-    const { data, error } = await query;
 
     if (error) {
       console.error("Load leads error:", error);
@@ -155,7 +123,7 @@ export default function LeadsPage() {
       return;
     }
 
-    setLeads((data || []).map((row) => dbToLead(row, owners)));
+    setLeads((data || []).map(dbToLead));
     setLoading(false);
   }
 
@@ -241,7 +209,7 @@ export default function LeadsPage() {
           return;
         }
 
-        const updatedLead = dbToLead(data, ownersMap);
+        const updatedLead = dbToLead(data);
 
         setLeads((prev) =>
           prev.map((lead) => (lead.id === editingLead.id ? updatedLead : lead))
@@ -262,7 +230,7 @@ export default function LeadsPage() {
           return;
         }
 
-        const newLead = dbToLead(data, ownersMap);
+        const newLead = dbToLead(data);
 
         setLeads((prev) => [newLead, ...prev]);
         addActivity(`Added lead for ${newLead.company || newLead.contact}`);
@@ -345,7 +313,7 @@ export default function LeadsPage() {
       return;
     }
 
-    const updatedLead = dbToLead(data, ownersMap);
+    const updatedLead = dbToLead(data);
 
     setLeads((prev) =>
       prev.map((item) => (item.id === id ? updatedLead : item))
@@ -357,7 +325,7 @@ export default function LeadsPage() {
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
       const searchText =
-        `${lead.company} ${lead.contact} ${lead.phone} ${lead.ownerName}`.toLowerCase();
+        `${lead.company} ${lead.contact} ${lead.phone}`.toLowerCase();
 
       const matchesSearch = searchText.includes(search.toLowerCase());
       const matchesStatus =
@@ -379,7 +347,7 @@ export default function LeadsPage() {
       "Last Contact",
       "Next Follow-up",
       "Notes",
-      "Owner Name",
+      "Owner User ID",
     ];
 
     const rows = filteredLeads.map((lead) => [
@@ -391,7 +359,7 @@ export default function LeadsPage() {
       lead.lastContact || "",
       lead.nextFollowUp || "",
       lead.notes || "",
-      lead.ownerName || "",
+      lead.user_id || "",
     ]);
 
     const csvContent = [headers, ...rows]
