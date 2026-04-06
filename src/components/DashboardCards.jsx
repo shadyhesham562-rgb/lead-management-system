@@ -70,6 +70,41 @@ function TeamStatCard({ name, total, hot, today, overdue }) {
   );
 }
 
+function NotificationBanner({ overdueCount, todayCount, hotCount }) {
+  let boxStyle = styles.noticeBlue;
+  let title = "All clear";
+  let text = "No urgent follow-ups right now. Keep moving through the pipeline.";
+
+  if (overdueCount > 0) {
+    boxStyle = styles.noticeRed;
+    title = "Urgent attention needed";
+    text = `${overdueCount} overdue lead${overdueCount > 1 ? "s" : ""} need immediate follow-up.`;
+  } else if (todayCount > 0) {
+    boxStyle = styles.noticeGold;
+    title = "Follow-ups due today";
+    text = `${todayCount} lead${todayCount > 1 ? "s" : ""} should be contacted today.`;
+  } else if (hotCount > 0) {
+    boxStyle = styles.noticeBlue;
+    title = "Hot leads available";
+    text = `${hotCount} hot lead${hotCount > 1 ? "s are" : " is"} ready for fast action.`;
+  }
+
+  return (
+    <div style={boxStyle}>
+      <div>
+        <div style={styles.noticeTitle}>{title}</div>
+        <div style={styles.noticeText}>{text}</div>
+      </div>
+
+      <div style={styles.noticePills}>
+        <div style={styles.noticePill}>Today: {todayCount}</div>
+        <div style={styles.noticePill}>Overdue: {overdueCount}</div>
+        <div style={styles.noticePill}>Hot: {hotCount}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardCards({ leads = [] }) {
   const today = getTodayString();
 
@@ -124,6 +159,12 @@ export default function DashboardCards({ leads = [] }) {
 
   return (
     <div style={styles.wrapper}>
+      <NotificationBanner
+        overdueCount={overdueLeads.length}
+        todayCount={todayLeads.length}
+        hotCount={hotLeads}
+      />
+
       <div style={styles.cardsGrid}>
         <div style={styles.card}>
           <div style={styles.cardLabel}>Total Leads</div>
@@ -240,6 +281,63 @@ const styles = {
     display: "grid",
     gap: 16,
     marginBottom: 16,
+  },
+  noticeBlue: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 14,
+    flexWrap: "wrap",
+    background: "linear-gradient(135deg, #1d4ed8, #1e3a8a)",
+    border: "1px solid rgba(255,255,255,0.10)",
+    borderRadius: 18,
+    padding: 16,
+  },
+  noticeGold: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 14,
+    flexWrap: "wrap",
+    background: "linear-gradient(135deg, #b45309, #92400e)",
+    border: "1px solid rgba(255,255,255,0.10)",
+    borderRadius: 18,
+    padding: 16,
+  },
+  noticeRed: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 14,
+    flexWrap: "wrap",
+    background: "linear-gradient(135deg, #b91c1c, #7f1d1d)",
+    border: "1px solid rgba(255,255,255,0.10)",
+    borderRadius: 18,
+    padding: 16,
+  },
+  noticeTitle: {
+    fontSize: 18,
+    fontWeight: 800,
+    color: "#fff",
+    marginBottom: 6,
+  },
+  noticeText: {
+    fontSize: 14,
+    color: "#eef4ff",
+    lineHeight: 1.6,
+  },
+  noticePills: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  noticePill: {
+    background: "rgba(255,255,255,0.14)",
+    color: "#fff",
+    borderRadius: 999,
+    padding: "8px 12px",
+    fontSize: 13,
+    fontWeight: 700,
   },
   cardsGrid: {
     display: "grid",
