@@ -51,6 +51,7 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [priorityFilter, setPriorityFilter] = useState("All");
   const [quickFilter, setQuickFilter] = useState("all");
+  const [ownerFilter, setOwnerFilter] = useState("All");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [currentRole, setCurrentRole] = useState("sales");
@@ -341,6 +342,13 @@ export default function LeadsPage() {
     addActivity(`Updated ${field} for ${updatedLead.company || updatedLead.contact}`);
   }
 
+  const ownerOptions = useMemo(() => {
+    const names = Array.from(
+      new Set(leads.map((lead) => lead.ownerName).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b));
+    return ["All", ...names];
+  }, [leads]);
+
   const filteredLeads = useMemo(() => {
     const today = getTodayString();
 
@@ -353,6 +361,8 @@ export default function LeadsPage() {
         statusFilter === "All" || lead.status === statusFilter;
       const matchesPriority =
         priorityFilter === "All" || lead.priority === priorityFilter;
+      const matchesOwner =
+        ownerFilter === "All" || lead.ownerName === ownerFilter;
 
       let matchesQuickFilter = true;
 
@@ -367,10 +377,11 @@ export default function LeadsPage() {
         matchesSearch &&
         matchesStatus &&
         matchesPriority &&
+        matchesOwner &&
         matchesQuickFilter
       );
     });
-  }, [leads, search, statusFilter, priorityFilter, quickFilter]);
+  }, [leads, search, statusFilter, priorityFilter, ownerFilter, quickFilter]);
 
   function exportCsv() {
     const headers = [
@@ -487,6 +498,9 @@ export default function LeadsPage() {
         setPriorityFilter={setPriorityFilter}
         quickFilter={quickFilter}
         setQuickFilter={setQuickFilter}
+        ownerFilter={ownerFilter}
+        setOwnerFilter={setOwnerFilter}
+        ownerOptions={ownerOptions}
         onEdit={handleOpenEdit}
         onDelete={currentRole === "admin" ? handleDeleteLead : null}
         onQuickUpdate={handleQuickUpdate}

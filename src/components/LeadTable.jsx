@@ -9,6 +9,9 @@ export default function LeadTable({
   setPriorityFilter,
   quickFilter = "all",
   setQuickFilter,
+  ownerFilter = "All",
+  setOwnerFilter,
+  ownerOptions = [],
   onEdit,
   onDelete,
   onQuickUpdate,
@@ -27,6 +30,7 @@ export default function LeadTable({
     setStatusFilter?.("All");
     setPriorityFilter?.("All");
     setQuickFilter?.("all");
+    setOwnerFilter?.("All");
   }
 
   function openWhatsApp(phone) {
@@ -130,6 +134,18 @@ export default function LeadTable({
           value={search}
           onChange={(e) => setSearch?.(e.target.value)}
         />
+
+        <select
+          style={styles.select}
+          value={ownerFilter}
+          onChange={(e) => setOwnerFilter?.(e.target.value)}
+        >
+          {(ownerOptions || []).map((owner) => (
+            <option key={owner} value={owner}>
+              {owner === "All" ? "All Owners" : owner}
+            </option>
+          ))}
+        </select>
 
         <select
           style={styles.select}
