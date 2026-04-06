@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Header from "../components/Header";
 import DashboardCards from "../components/DashboardCards";
 import LeadForm from "../components/LeadForm";
 import LeadTable from "../components/LeadTable";
 import { supabase } from "../supabaseClient.js";
+
+const ACTIVITY_KEY = "crm_activity_v2";
 
 function getTodayString() {
   return new Date().toISOString().split("T")[0];
@@ -39,15 +41,105 @@ function buildPayload(leadData, ownerUserId) {
   };
 }
 
-function formatActivityTime(value) {
-  if (!value) return "";
-  return new Date(value).toLocaleString();
+function parseCsvLine(line) {
+  const result = [];
+  let current = "";
+  let insideQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+
+    if (char === '"' && insideQuotes && nextChar === '"') {
+      current += '"';
+      i += 1;
+      continue;
+    }
+
+    if (char === '"') {
+      insideQuotes = !insideQuotes;
+      continue;
+    }
+
+    if (char === "," && !insideQuotes) {
+      result.push(current);
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  result.push(current);
+  return result.map((item) => item.trim());
+}
+
+function parseCsvText(text) {
+  const safeText = String(text || "").replace(/\r/g, "").trim();
+  if (!safeText) return [];
+
+  const lines = safeText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 2) return [];
+
+  const headers = parseCsvLine(lines[0]).map((header) =>
+    header.toLowerCase().replace(/\s+/g, "").replace(/_/g, "")
+  );
+
+  const rows = [];
+
+  for (let i = 1; i < lines.length; i += 1) {
+    const values = parseCsvLine(lines[i]);
+    const row = {};
+
+    headers.forEach((header, index) => {
+      row[header] = values[index] || "";
+    });
+
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function mapCsvRowToPayload(row, userId) {
+  const company = row.company || "";
+  const contact = row.contact || "";
+  const phone = row.phone || "";
+  const status = row.status || "New";
+  const priority = row.priority || "Warm";
+  const notes = row.notes || "";
+  const lastContact = row.lastcontact || row.lastcontactdate || "";
+  const nextFollowUp = row.nextfollowup || row.nextfollowupdate || "";
+
+  if (!company.trim() || !contact.trim() || !phone.trim()) {
+    return null;
+  }
+
+  return {
+    company: company.trim(),
+    contact: contact.trim(),
+    phone: phone.trim(),
+    status: status.trim() || "New",
+    priority: priority.trim() || "Warm",
+    notes: notes.trim(),
+    last_contact: lastContact.trim() || null,
+    next_follow_up: nextFollowUp.trim() || null,
+    user_id: userId,
+  };
 }
 
 export default function LeadsPage() {
+  const fileInputRef = useRef(null);
+
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+
   const [showForm, setShowForm] = useState(false);
   const [editingLead, setEditingLead] = useState(null);
 
@@ -63,11 +155,23 @@ export default function LeadsPage() {
   const [currentRole, setCurrentRole] = useState("sales");
   const [currentUserName, setCurrentUserName] = useState("User");
   const [ownersMap, setOwnersMap] = useState({});
-  const [activityLog, setActivityLog] = useState([]);
+
+  const [activityLog, setActivityLog] = useState(() => {
+    try {
+      const saved = localStorage.getItem(ACTIVITY_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     loadPageData();
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activityLog));
+  }, [activityLog]);
 
   async function getViewerContext() {
     const {
@@ -116,21 +220,6 @@ export default function LeadsPage() {
     return map;
   }
 
-  async function loadActivities() {
-    const { data, error } = await supabase
-      .from("lead_activities")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(20);
-
-    if (error) {
-      console.error("Load activities error:", error);
-      return;
-    }
-
-    setActivityLog(data || []);
-  }
-
   async function loadPageData() {
     setLoading(true);
     setErrorMessage("");
@@ -141,7 +230,6 @@ export default function LeadsPage() {
       setCurrentRole("sales");
       setCurrentUserName("User");
       setLeads([]);
-      setActivityLog([]);
       setLoading(false);
       return;
     }
@@ -164,31 +252,17 @@ export default function LeadsPage() {
     }
 
     setLeads((data || []).map((row) => dbToLead(row, owners)));
-    await loadActivities();
     setLoading(false);
   }
 
-  async function addActivity({ leadId = null, actorName = "User", actionType, details }) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  function addActivity(text) {
+    const item = {
+      id: Date.now(),
+      text,
+      time: new Date().toLocaleString(),
+    };
 
-    const { error } = await supabase.from("lead_activities").insert([
-      {
-        lead_id: leadId,
-        actor_user_id: user?.id || null,
-        actor_name: actorName,
-        action_type: actionType,
-        details,
-      },
-    ]);
-
-    if (error) {
-      console.error("Add activity error:", error);
-      return;
-    }
-
-    await loadActivities();
+    setActivityLog((prev) => [item, ...prev].slice(0, 20));
   }
 
   function handleOpenAdd() {
@@ -265,13 +339,7 @@ export default function LeadsPage() {
           prev.map((lead) => (lead.id === editingLead.id ? updatedLead : lead))
         );
 
-        await addActivity({
-          leadId: updatedLead.id,
-          actorName: context.fullName || "User",
-          actionType: "update",
-          details: `Updated lead for ${updatedLead.company || updatedLead.contact}`,
-        });
-
+        addActivity(`Updated lead for ${updatedLead.company || updatedLead.contact}`);
         setSuccessMessage("Lead updated successfully");
       } else {
         const { data, error } = await supabase
@@ -289,14 +357,7 @@ export default function LeadsPage() {
         const newLead = dbToLead(data, ownersMap);
 
         setLeads((prev) => [newLead, ...prev]);
-
-        await addActivity({
-          leadId: newLead.id,
-          actorName: context.fullName || "User",
-          actionType: "insert",
-          details: `Added lead for ${newLead.company || newLead.contact}`,
-        });
-
+        addActivity(`Added lead for ${newLead.company || newLead.contact}`);
         setSuccessMessage("Lead added successfully");
       }
 
@@ -339,16 +400,11 @@ export default function LeadsPage() {
     }
 
     setLeads((prev) => prev.filter((lead) => lead.id !== id));
-
-    await addActivity({
-      leadId: id,
-      actorName: context.fullName || "User",
-      actionType: "delete",
-      details: `Deleted lead for ${
+    addActivity(
+      `Deleted lead for ${
         leadToDelete?.company || leadToDelete?.contact || "Unknown"
-      }`,
-    });
-
+      }`
+    );
     setSuccessMessage("Lead deleted successfully");
   }
 
@@ -382,12 +438,74 @@ export default function LeadsPage() {
       prev.map((item) => (item.id === id ? updatedLead : item))
     );
 
-    await addActivity({
-      leadId: updatedLead.id,
-      actorName: context.fullName || "User",
-      actionType: "quick_update",
-      details: `Updated ${field} for ${updatedLead.company || updatedLead.contact}`,
-    });
+    addActivity(`Updated ${field} for ${updatedLead.company || updatedLead.contact}`);
+  }
+
+  async function handleImportCsvFile(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    const context = await getViewerContext();
+
+    if (!context) {
+      setErrorMessage("You must be logged in");
+      return;
+    }
+
+    setImporting(true);
+
+    try {
+      const text = await file.text();
+      const rows = parseCsvText(text);
+
+      if (!rows.length) {
+        setErrorMessage("CSV file is empty or invalid");
+        return;
+      }
+
+      const payloads = rows
+        .map((row) => mapCsvRowToPayload(row, context.user.id))
+        .filter(Boolean);
+
+      if (!payloads.length) {
+        setErrorMessage(
+          "No valid rows found. Required columns: company, contact, phone"
+        );
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("leads")
+        .insert(payloads)
+        .select("*");
+
+      if (error) {
+        console.error("Import error:", error);
+        setErrorMessage(error.message);
+        return;
+      }
+
+      const importedLeads = (data || []).map((row) => dbToLead(row, ownersMap));
+
+      setLeads((prev) => [...importedLeads, ...prev]);
+
+      addActivity(
+        `${context.fullName || "User"} imported ${importedLeads.length} lead${
+          importedLeads.length > 1 ? "s" : ""
+        } from CSV`
+      );
+
+      setSuccessMessage(
+        `${importedLeads.length} lead${importedLeads.length > 1 ? "s" : ""} imported successfully`
+      );
+    } finally {
+      setImporting(false);
+    }
   }
 
   const ownerOptions = useMemo(() => {
@@ -504,8 +622,15 @@ export default function LeadsPage() {
         <div style={styles.activityHeader}>
           <div>
             <h3 style={styles.activityTitle}>Recent Activity</h3>
-            <div style={styles.activitySub}>Latest CRM actions from all users</div>
+            <div style={styles.activitySub}>Latest CRM actions</div>
           </div>
+
+          <button
+            style={styles.clearActivityBtn}
+            onClick={() => setActivityLog([])}
+          >
+            Clear Activity
+          </button>
         </div>
 
         <div style={styles.activityList}>
@@ -514,22 +639,34 @@ export default function LeadsPage() {
           ) : (
             activityLog.map((item) => (
               <div key={item.id} style={styles.activityItem}>
-                <div style={styles.activityText}>{item.details}</div>
-                <div style={styles.activityMeta}>
-                  <span>{item.actor_name || "Unknown"}</span>
-                  <span>•</span>
-                  <span>{formatActivityTime(item.created_at)}</span>
-                </div>
+                <div style={styles.activityText}>{item.text}</div>
+                <div style={styles.activityTime}>{item.time}</div>
               </div>
             ))
           )}
         </div>
       </div>
 
-      <div style={{ marginBottom: 12 }}>
+      <div style={styles.topActionsRow}>
         <button style={styles.addLeadBtn} onClick={handleOpenAdd}>
           Add Lead
         </button>
+
+        <button
+          style={styles.importBtn}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={importing}
+        >
+          {importing ? "Importing..." : "Import CSV"}
+        </button>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv"
+          style={{ display: "none" }}
+          onChange={handleImportCsvFile}
+        />
       </div>
 
       <LeadTable
@@ -616,6 +753,14 @@ const styles = {
     fontSize: 12,
     color: "#c9d8f5",
   },
+  clearActivityBtn: {
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "#233452",
+    color: "#fff",
+    borderRadius: 8,
+    padding: "8px 12px",
+    cursor: "pointer",
+  },
   activityList: {
     display: "grid",
     gap: 10,
@@ -635,18 +780,30 @@ const styles = {
   activityText: {
     fontSize: 14,
     fontWeight: 700,
-    marginBottom: 6,
+    marginBottom: 4,
   },
-  activityMeta: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 8,
+  activityTime: {
     fontSize: 12,
     color: "#c9d8f5",
+  },
+  topActionsRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 12,
   },
   addLeadBtn: {
     border: "none",
     background: "#2563eb",
+    color: "#fff",
+    borderRadius: 8,
+    padding: "10px 16px",
+    cursor: "pointer",
+    fontWeight: 700,
+  },
+  importBtn: {
+    border: "none",
+    background: "#16a34a",
     color: "#fff",
     borderRadius: 8,
     padding: "10px 16px",
