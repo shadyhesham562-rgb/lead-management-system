@@ -43,7 +43,7 @@ export default function LeadTable({
         <input
           style={styles.searchInput}
           type="text"
-          placeholder="Search by company / contact / phone"
+          placeholder="Search by company / contact / phone / owner"
           value={search}
           onChange={(e) => setSearch?.(e.target.value)}
         />
@@ -95,6 +95,7 @@ export default function LeadTable({
               <th style={styles.th}>Company</th>
               <th style={styles.th}>Contact</th>
               <th style={styles.th}>Phone</th>
+              <th style={styles.th}>Owner</th>
               <th style={styles.th}>Status</th>
               <th style={styles.th}>Priority</th>
               <th style={styles.th}>Last Contact</th>
@@ -107,13 +108,13 @@ export default function LeadTable({
           <tbody>
             {loading ? (
               <tr>
-                <td style={styles.emptyCell} colSpan={9}>
+                <td style={styles.emptyCell} colSpan={10}>
                   Loading...
                 </td>
               </tr>
             ) : leads.length === 0 ? (
               <tr>
-                <td style={styles.emptyCell} colSpan={9}>
+                <td style={styles.emptyCell} colSpan={10}>
                   No leads found
                 </td>
               </tr>
@@ -123,6 +124,7 @@ export default function LeadTable({
                   <td style={styles.td}>{lead.company || "-"}</td>
                   <td style={styles.td}>{lead.contact || "-"}</td>
                   <td style={styles.td}>{lead.phone || "-"}</td>
+                  <td style={styles.td}>{lead.ownerName || "-"}</td>
 
                   <td style={styles.td}>
                     <select
@@ -299,7 +301,7 @@ const styles = {
   table: {
     width: "100%",
     borderCollapse: "collapse",
-    minWidth: 1100,
+    minWidth: 1250,
   },
   th: {
     textAlign: "left",
