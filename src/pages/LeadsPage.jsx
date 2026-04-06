@@ -7,6 +7,10 @@ import { supabase } from "../supabaseClient.js";
 
 const ACTIVITY_KEY = "crm_activity_v2";
 
+function getTodayString() {
+  return new Date().toISOString().split("T")[0];
+}
+
 function dbToLead(row, ownersMap = {}) {
   return {
     id: row.id,
@@ -46,6 +50,7 @@ export default function LeadsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [priorityFilter, setPriorityFilter] = useState("All");
+  const [quickFilter, setQuickFilter] = useState("all");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [currentRole, setCurrentRole] = useState("sales");
@@ -337,6 +342,8 @@ export default function LeadsPage() {
   }
 
   const filteredLeads = useMemo(() => {
+    const today = getTodayString();
+
     return leads.filter((lead) => {
       const searchText =
         `${lead.company} ${lead.contact} ${lead.phone} ${lead.ownerName}`.toLowerCase();
@@ -347,9 +354,23 @@ export default function LeadsPage() {
       const matchesPriority =
         priorityFilter === "All" || lead.priority === priorityFilter;
 
-      return matchesSearch && matchesStatus && matchesPriority;
+      let matchesQuickFilter = true;
+
+      if (quickFilter === "today") {
+        matchesQuickFilter = lead.nextFollowUp === today;
+      } else if (quickFilter === "overdue") {
+        matchesQuickFilter =
+          !!lead.nextFollowUp && lead.nextFollowUp < today;
+      }
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesPriority &&
+        matchesQuickFilter
+      );
     });
-  }, [leads, search, statusFilter, priorityFilter]);
+  }, [leads, search, statusFilter, priorityFilter, quickFilter]);
 
   function exportCsv() {
     const headers = [
@@ -464,6 +485,8 @@ export default function LeadsPage() {
         setStatusFilter={setStatusFilter}
         priorityFilter={priorityFilter}
         setPriorityFilter={setPriorityFilter}
+        quickFilter={quickFilter}
+        setQuickFilter={setQuickFilter}
         onEdit={handleOpenEdit}
         onDelete={currentRole === "admin" ? handleDeleteLead : null}
         onQuickUpdate={handleQuickUpdate}

@@ -7,6 +7,8 @@ export default function LeadTable({
   setStatusFilter,
   priorityFilter = "All",
   setPriorityFilter,
+  quickFilter = "all",
+  setQuickFilter,
   onEdit,
   onDelete,
   onQuickUpdate,
@@ -24,6 +26,7 @@ export default function LeadTable({
     setSearch?.("");
     setStatusFilter?.("All");
     setPriorityFilter?.("All");
+    setQuickFilter?.("all");
   }
 
   function openWhatsApp(phone) {
@@ -94,6 +97,31 @@ export default function LeadTable({
 
   return (
     <div style={styles.wrapper}>
+      <div style={styles.quickFilterRow}>
+        <button
+          style={quickFilter === "all" ? styles.quickBtnActive : styles.quickBtn}
+          onClick={() => setQuickFilter?.("all")}
+        >
+          All
+        </button>
+
+        <button
+          style={quickFilter === "today" ? styles.quickBtnToday : styles.quickBtn}
+          onClick={() => setQuickFilter?.("today")}
+        >
+          Today
+        </button>
+
+        <button
+          style={
+            quickFilter === "overdue" ? styles.quickBtnOverdue : styles.quickBtn
+          }
+          onClick={() => setQuickFilter?.("overdue")}
+        >
+          Overdue
+        </button>
+      </div>
+
       <div style={styles.filtersRow}>
         <input
           style={styles.searchInput}
@@ -259,6 +287,48 @@ export default function LeadTable({
 const styles = {
   wrapper: {
     width: "100%",
+  },
+  quickFilterRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 12,
+  },
+  quickBtn: {
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "#162845",
+    color: "#fff",
+    borderRadius: 999,
+    padding: "10px 14px",
+    cursor: "pointer",
+    fontWeight: 700,
+  },
+  quickBtnActive: {
+    border: "none",
+    background: "#2563eb",
+    color: "#fff",
+    borderRadius: 999,
+    padding: "10px 14px",
+    cursor: "pointer",
+    fontWeight: 700,
+  },
+  quickBtnToday: {
+    border: "none",
+    background: "#d97706",
+    color: "#fff",
+    borderRadius: 999,
+    padding: "10px 14px",
+    cursor: "pointer",
+    fontWeight: 700,
+  },
+  quickBtnOverdue: {
+    border: "none",
+    background: "#dc2626",
+    color: "#fff",
+    borderRadius: 999,
+    padding: "10px 14px",
+    cursor: "pointer",
+    fontWeight: 700,
   },
   filtersRow: {
     display: "flex",
