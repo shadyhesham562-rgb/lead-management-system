@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 
 const ALLOWED_EMAILS = [
@@ -11,10 +11,28 @@ const ALLOWED_EMAILS = [
 ];
 
 export default function Login() {
+  const [mode, setMode] = useState("login"); // login | forgot | reset
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
+  const [confirmResetPassword, setConfirmResetPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setMode("reset");
+        setMessage("Enter your new password");
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -56,11 +74,89 @@ export default function Login() {
     setLoading(false);
   }
 
+  async function handleForgotPassword(e) {
+    e.preventDefault();
+    setMessage("");
+    setLoading(true);
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail) {
+      setMessage("Email is required");
+      setLoading(false);
+      return;
+    }
+
+    if (!ALLOWED_EMAILS.includes(cleanEmail)) {
+      setMessage("This email is not allowed to access this CRM.");
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+      redirectTo: window.location.origin,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      setLoading(false);
+      return;
+    }
+
+    setMessage("Password reset email sent. Check your inbox.");
+    setLoading(false);
+  }
+
+  async function handleResetPassword(e) {
+    e.preventDefault();
+    setMessage("");
+    setLoading(true);
+
+    const cleanPassword = resetPassword.trim();
+    const cleanConfirm = confirmResetPassword.trim();
+
+    if (!cleanPassword) {
+      setMessage("New password is required");
+      setLoading(false);
+      return;
+    }
+
+    if (cleanPassword.length < 6) {
+      setMessage("Password must be at least 6 characters");
+      setLoading(false);
+      return;
+    }
+
+    if (cleanPassword !== cleanConfirm) {
+      setMessage("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password: cleanPassword,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      setLoading(false);
+      return;
+    }
+
+    setMessage("Password updated successfully. You can now log in.");
+    setLoading(false);
+    setMode("login");
+    setPassword("");
+    setResetPassword("");
+    setConfirmResetPassword("");
+  }
+
   return (
     <div style={styles.page}>
       <div style={styles.bgGlowOne} />
       <div style={styles.bgGlowTwo} />
-      <div style={styles.bgGrid} />
+      <div style={styles.bgGlowThree} />
+      <div style={styles.gridOverlay} />
 
       <div style={styles.wrapper}>
         <div style={styles.leftSide}>
@@ -76,36 +172,37 @@ export default function Login() {
           </div>
 
           <div style={styles.heroCard}>
+            <div style={styles.heroTopLine} />
             <div style={styles.badge}>Internal Team Portal</div>
 
             <h1 style={styles.heroTitle}>
-              A cleaner way to manage leads, follow-ups, and daily sales flow.
+              A premium and focused CRM experience for secure daily sales work.
             </h1>
 
             <p style={styles.heroText}>
-              Built for authorized INN users with a focused workspace, secure
-              access, and a smooth CRM experience.
+              Built for authorized INN users with cleaner visibility, organized
+              follow-ups, and a smarter lead workflow in one elegant workspace.
             </p>
 
             <div style={styles.pillRow}>
-              <div style={styles.pill}>Lead Tracking</div>
               <div style={styles.pill}>Private Access</div>
-              <div style={styles.pill}>Follow-up Flow</div>
+              <div style={styles.pill}>Lead Tracking</div>
+              <div style={styles.pill}>Smooth Follow-up</div>
             </div>
 
-            <div style={styles.featurePanel}>
+            <div style={styles.featureGrid}>
               <div style={styles.featureCard}>
-                <div style={styles.featureDot} />
+                <div style={styles.featureIcon} />
                 <div>
                   <div style={styles.featureTitle}>Focused Workspace</div>
                   <div style={styles.featureText}>
-                    Keep your team working in one simple and organized place.
+                    Keep the team aligned inside one clear and organized dashboard.
                   </div>
                 </div>
               </div>
 
               <div style={styles.featureCard}>
-                <div style={styles.featureDot} />
+                <div style={styles.featureIcon} />
                 <div>
                   <div style={styles.featureTitle}>Authorized Access</div>
                   <div style={styles.featureText}>
@@ -115,11 +212,21 @@ export default function Login() {
               </div>
 
               <div style={styles.featureCard}>
-                <div style={styles.featureDot} />
+                <div style={styles.featureIcon} />
                 <div>
-                  <div style={styles.featureTitle}>Sales Visibility</div>
+                  <div style={styles.featureTitle}>Daily Flow Control</div>
                   <div style={styles.featureText}>
-                    Track leads, update status, and keep follow-ups moving.
+                    Follow lead status changes and keep follow-ups moving.
+                  </div>
+                </div>
+              </div>
+
+              <div style={styles.featureCard}>
+                <div style={styles.featureIcon} />
+                <div>
+                  <div style={styles.featureTitle}>Clean Interface</div>
+                  <div style={styles.featureText}>
+                    A more polished layout for faster internal team usage.
                   </div>
                 </div>
               </div>
@@ -129,43 +236,129 @@ export default function Login() {
 
         <div style={styles.rightSide}>
           <div style={styles.loginCard}>
+            <div style={styles.loginCardGlow} />
             <div style={styles.loginTopLine} />
             <div style={styles.loginMiniLogo}>INN</div>
 
-            <h2 style={styles.loginTitle}>Welcome Back</h2>
+            <h2 style={styles.loginTitle}>
+              {mode === "login"
+                ? "Welcome Back"
+                : mode === "forgot"
+                ? "Forgot Password"
+                : "Reset Password"}
+            </h2>
+
             <p style={styles.loginSubtitle}>
-              Sign in with your authorized team email
+              {mode === "login"
+                ? "Sign in with your authorized team email"
+                : mode === "forgot"
+                ? "Enter your email to receive a reset link"
+                : "Enter your new password"}
             </p>
 
-            <form onSubmit={handleLogin} style={styles.form}>
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Email Address</label>
-                <input
-                  style={styles.input}
-                  type="email"
-                  placeholder="name@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
+            {mode === "login" ? (
+              <form onSubmit={handleLogin} style={styles.form}>
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Email Address</label>
+                  <input
+                    style={styles.input}
+                    type="email"
+                    placeholder="name@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
 
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Password</label>
-                <input
-                  style={styles.input}
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Password</label>
+                  <input
+                    style={styles.input}
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
 
-              <button style={styles.primaryBtn} type="submit" disabled={loading}>
-                {loading ? "Signing in..." : "Login"}
-              </button>
-            </form>
+                <button style={styles.primaryBtn} type="submit" disabled={loading}>
+                  {loading ? "Signing in..." : "Login"}
+                </button>
+              </form>
+            ) : mode === "forgot" ? (
+              <form onSubmit={handleForgotPassword} style={styles.form}>
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Email Address</label>
+                  <input
+                    style={styles.input}
+                    type="email"
+                    placeholder="name@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+
+                <button style={styles.primaryBtn} type="submit" disabled={loading}>
+                  {loading ? "Sending..." : "Send Reset Link"}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleResetPassword} style={styles.form}>
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>New Password</label>
+                  <input
+                    style={styles.input}
+                    type="password"
+                    placeholder="Enter new password"
+                    value={resetPassword}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                  />
+                </div>
+
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Confirm Password</label>
+                  <input
+                    style={styles.input}
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={confirmResetPassword}
+                    onChange={(e) => setConfirmResetPassword(e.target.value)}
+                  />
+                </div>
+
+                <button style={styles.primaryBtn} type="submit" disabled={loading}>
+                  {loading ? "Saving..." : "Update Password"}
+                </button>
+              </form>
+            )}
 
             {message ? <div style={styles.message}>{message}</div> : null}
+
+            <div style={styles.linkRow}>
+              {mode !== "login" ? (
+                <button
+                  type="button"
+                  style={styles.linkBtn}
+                  onClick={() => {
+                    setMode("login");
+                    setMessage("");
+                  }}
+                >
+                  Back to Login
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  style={styles.linkBtn}
+                  onClick={() => {
+                    setMode("forgot");
+                    setMessage("");
+                    setPassword("");
+                  }}
+                >
+                  Forgot Password?
+                </button>
+              )}
+            </div>
 
             <div style={styles.footerNote}>
               Authorized accounts only · INN Internal CRM
@@ -183,40 +376,51 @@ const styles = {
     position: "relative",
     overflow: "hidden",
     background:
-      "linear-gradient(135deg, #061224 0%, #08182f 35%, #091329 70%, #030b16 100%)",
-    color: "#fff",
+      "linear-gradient(135deg, #050d1b 0%, #08162c 28%, #091e3d 58%, #030914 100%)",
+    color: "#ffffff",
     padding: 24,
   },
   bgGlowOne: {
     position: "absolute",
     top: -120,
-    left: -100,
+    left: -80,
     width: 420,
     height: 420,
     borderRadius: "50%",
-    background: "radial-gradient(circle, rgba(37,99,235,0.22), transparent 68%)",
-    filter: "blur(26px)",
+    background: "radial-gradient(circle, rgba(59,130,246,0.26), transparent 68%)",
+    filter: "blur(28px)",
     pointerEvents: "none",
   },
   bgGlowTwo: {
     position: "absolute",
-    bottom: -160,
+    top: 120,
     right: -120,
+    width: 420,
+    height: 420,
+    borderRadius: "50%",
+    background: "radial-gradient(circle, rgba(96,165,250,0.14), transparent 70%)",
+    filter: "blur(32px)",
+    pointerEvents: "none",
+  },
+  bgGlowThree: {
+    position: "absolute",
+    bottom: -160,
+    left: "28%",
     width: 520,
     height: 520,
     borderRadius: "50%",
-    background: "radial-gradient(circle, rgba(59,130,246,0.14), transparent 70%)",
-    filter: "blur(30px)",
+    background: "radial-gradient(circle, rgba(29,78,216,0.16), transparent 72%)",
+    filter: "blur(38px)",
     pointerEvents: "none",
   },
-  bgGrid: {
+  gridOverlay: {
     position: "absolute",
     inset: 0,
     opacity: 0.05,
-    pointerEvents: "none",
     backgroundImage:
-      "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)",
-    backgroundSize: "42px 42px",
+      "linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)",
+    backgroundSize: "40px 40px",
+    pointerEvents: "none",
   },
   wrapper: {
     position: "relative",
@@ -226,14 +430,14 @@ const styles = {
     flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 30,
+    gap: 32,
   },
   leftSide: {
     flex: "1 1 720px",
     minWidth: 320,
   },
   rightSide: {
-    flex: "0 1 450px",
+    flex: "0 1 460px",
     minWidth: 320,
     display: "flex",
     justifyContent: "center",
@@ -243,41 +447,52 @@ const styles = {
     alignItems: "center",
     gap: 20,
     flexWrap: "wrap",
-    marginBottom: 28,
+    marginBottom: 30,
   },
   logo: {
-    fontSize: 64,
+    fontSize: 68,
     fontWeight: 900,
     letterSpacing: "6px",
     lineHeight: 1,
     color: "#ffffff",
-    textShadow: "0 0 24px rgba(37,99,235,0.18)",
+    textShadow: "0 10px 32px rgba(59,130,246,0.24)",
   },
   brandName: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: 900,
-    color: "#ffffff",
     marginBottom: 6,
   },
   brandSub: {
     fontSize: 16,
-    color: "#c7d7f3",
+    color: "#c8d7f7",
   },
   heroCard: {
     maxWidth: 860,
-    background: "rgba(8, 24, 49, 0.72)",
+    position: "relative",
+    background:
+      "linear-gradient(160deg, rgba(8,27,55,0.86), rgba(5,18,37,0.78))",
     border: "1px solid rgba(255,255,255,0.10)",
     borderRadius: 30,
     padding: 34,
-    boxShadow: "0 30px 90px rgba(0,0,0,0.30)",
+    boxShadow: "0 30px 90px rgba(0,0,0,0.32)",
     backdropFilter: "blur(12px)",
+    overflow: "hidden",
+  },
+  heroTopLine: {
+    position: "absolute",
+    top: 0,
+    left: 28,
+    right: 28,
+    height: 3,
+    borderRadius: 999,
+    background: "linear-gradient(90deg, transparent, #60a5fa, transparent)",
   },
   badge: {
     display: "inline-block",
     padding: "10px 16px",
     borderRadius: 999,
-    background: "rgba(37,99,235,0.16)",
-    border: "1px solid rgba(147,197,253,0.18)",
+    background: "rgba(59,130,246,0.14)",
+    border: "1px solid rgba(147,197,253,0.20)",
     color: "#dbeafe",
     fontSize: 13,
     fontWeight: 800,
@@ -286,18 +501,17 @@ const styles = {
   },
   heroTitle: {
     margin: 0,
-    fontSize: 38,
+    fontSize: 40,
     fontWeight: 900,
-    lineHeight: 1.25,
-    maxWidth: 720,
-    color: "#ffffff",
+    lineHeight: 1.22,
+    maxWidth: 730,
   },
   heroText: {
     margin: "18px 0 0",
     fontSize: 17,
-    lineHeight: 1.8,
-    color: "#c7d7f3",
-    maxWidth: 730,
+    lineHeight: 1.85,
+    color: "#c9d8f5",
+    maxWidth: 740,
   },
   pillRow: {
     display: "flex",
@@ -309,15 +523,17 @@ const styles = {
   pill: {
     padding: "10px 16px",
     borderRadius: 999,
-    background: "rgba(255,255,255,0.04)",
+    background: "rgba(255,255,255,0.05)",
     border: "1px solid rgba(255,255,255,0.08)",
     fontSize: 14,
     fontWeight: 700,
-    color: "#e7efff",
+    color: "#e6efff",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
   },
-  featurePanel: {
+  featureGrid: {
     display: "grid",
-    gap: 14,
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 16,
   },
   featureCard: {
     display: "flex",
@@ -327,14 +543,15 @@ const styles = {
     border: "1px solid rgba(255,255,255,0.08)",
     borderRadius: 20,
     padding: 18,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
   },
-  featureDot: {
+  featureIcon: {
     width: 12,
     height: 12,
     borderRadius: "50%",
     marginTop: 7,
-    background: "linear-gradient(135deg, #60a5fa, #2563eb)",
-    boxShadow: "0 0 18px rgba(96,165,250,0.55)",
+    background: "linear-gradient(135deg, #7dd3fc, #2563eb)",
+    boxShadow: "0 0 20px rgba(96,165,250,0.55)",
     flexShrink: 0,
   },
   featureTitle: {
@@ -349,15 +566,27 @@ const styles = {
   },
   loginCard: {
     width: "100%",
-    maxWidth: 440,
-    background: "rgba(8, 24, 49, 0.82)",
+    maxWidth: 450,
+    position: "relative",
+    background:
+      "linear-gradient(180deg, rgba(8,25,52,0.88), rgba(4,14,30,0.90))",
     border: "1px solid rgba(255,255,255,0.10)",
     borderRadius: 30,
     padding: 32,
-    boxShadow: "0 30px 90px rgba(0,0,0,0.34)",
+    boxShadow: "0 30px 90px rgba(0,0,0,0.36)",
     backdropFilter: "blur(14px)",
-    position: "relative",
     overflow: "hidden",
+  },
+  loginCardGlow: {
+    position: "absolute",
+    top: -80,
+    right: -80,
+    width: 180,
+    height: 180,
+    borderRadius: "50%",
+    background: "radial-gradient(circle, rgba(96,165,250,0.20), transparent 70%)",
+    filter: "blur(16px)",
+    pointerEvents: "none",
   },
   loginTopLine: {
     position: "absolute",
@@ -366,10 +595,10 @@ const styles = {
     right: 28,
     height: 3,
     borderRadius: 999,
-    background: "linear-gradient(90deg, transparent, #3b82f6, transparent)",
+    background: "linear-gradient(90deg, transparent, #60a5fa, transparent)",
   },
   loginMiniLogo: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: 900,
     letterSpacing: "4px",
     marginBottom: 18,
@@ -377,10 +606,9 @@ const styles = {
   },
   loginTitle: {
     margin: 0,
-    fontSize: 34,
+    fontSize: 36,
     fontWeight: 900,
-    lineHeight: 1.15,
-    color: "#ffffff",
+    lineHeight: 1.12,
   },
   loginSubtitle: {
     margin: "10px 0 0",
@@ -405,7 +633,7 @@ const styles = {
   input: {
     width: "100%",
     border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(4, 15, 30, 0.72)",
+    background: "rgba(2, 11, 24, 0.76)",
     color: "#fff",
     borderRadius: 14,
     padding: "15px 16px",
@@ -417,14 +645,14 @@ const styles = {
   primaryBtn: {
     marginTop: 8,
     border: "none",
-    background: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
+    background: "linear-gradient(135deg, #4f8cff, #2563eb)",
     color: "#fff",
     borderRadius: 14,
     padding: "15px 16px",
     cursor: "pointer",
     fontWeight: 900,
     fontSize: 16,
-    boxShadow: "0 16px 32px rgba(37,99,235,0.20)",
+    boxShadow: "0 16px 36px rgba(37,99,235,0.28)",
   },
   message: {
     marginTop: 16,
@@ -435,6 +663,19 @@ const styles = {
     fontSize: 14,
     lineHeight: 1.6,
     color: "#fff3d6",
+  },
+  linkRow: {
+    display: "flex",
+    justifyContent: "center",
+    marginTop: 14,
+  },
+  linkBtn: {
+    background: "transparent",
+    border: "none",
+    color: "#8db8ff",
+    cursor: "pointer",
+    fontSize: 14,
+    fontWeight: 700,
   },
   footerNote: {
     marginTop: 20,
