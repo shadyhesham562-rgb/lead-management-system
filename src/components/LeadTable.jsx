@@ -37,6 +37,61 @@ export default function LeadTable({
     window.location.href = `tel:${phone}`;
   }
 
+  function getFollowUpType(lead) {
+    if (!lead.nextFollowUp) return "none";
+    if (lead.nextFollowUp < today) return "overdue";
+    if (lead.nextFollowUp === today) return "today";
+    return "upcoming";
+  }
+
+  function getRowStyle(lead) {
+    const type = getFollowUpType(lead);
+
+    if (type === "overdue") {
+      return {
+        ...styles.row,
+        background: "rgba(127, 29, 29, 0.18)",
+      };
+    }
+
+    if (type === "today") {
+      return {
+        ...styles.row,
+        background: "rgba(180, 83, 9, 0.18)",
+      };
+    }
+
+    return styles.row;
+  }
+
+  function renderFollowUpCell(lead) {
+    const type = getFollowUpType(lead);
+
+    if (!lead.nextFollowUp) {
+      return <span>-</span>;
+    }
+
+    if (type === "overdue") {
+      return (
+        <div style={styles.followUpCell}>
+          <span>{lead.nextFollowUp}</span>
+          <span style={styles.overdueBadge}>Overdue</span>
+        </div>
+      );
+    }
+
+    if (type === "today") {
+      return (
+        <div style={styles.followUpCell}>
+          <span>{lead.nextFollowUp}</span>
+          <span style={styles.todayBadge}>Today</span>
+        </div>
+      );
+    }
+
+    return <span>{lead.nextFollowUp}</span>;
+  }
+
   return (
     <div style={styles.wrapper}>
       <div style={styles.filtersRow}>
@@ -120,7 +175,7 @@ export default function LeadTable({
               </tr>
             ) : (
               leads.map((lead) => (
-                <tr key={lead.id}>
+                <tr key={lead.id} style={getRowStyle(lead)}>
                   <td style={styles.td}>{lead.company || "-"}</td>
                   <td style={styles.td}>{lead.contact || "-"}</td>
                   <td style={styles.td}>{lead.phone || "-"}</td>
@@ -155,7 +210,7 @@ export default function LeadTable({
                   </td>
 
                   <td style={styles.td}>{lead.lastContact || "-"}</td>
-                  <td style={styles.td}>{lead.nextFollowUp || "-"}</td>
+                  <td style={styles.td}>{renderFollowUpCell(lead)}</td>
                   <td style={styles.td}>{lead.notes || "-"}</td>
 
                   <td style={styles.td}>
@@ -312,6 +367,9 @@ const styles = {
     fontWeight: 800,
     borderBottom: "1px solid rgba(255,255,255,0.08)",
   },
+  row: {
+    transition: "background 0.2s ease",
+  },
   td: {
     padding: "12px",
     color: "#fff",
@@ -332,6 +390,28 @@ const styles = {
     borderRadius: 8,
     padding: "8px 10px",
     outline: "none",
+  },
+  followUpCell: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    alignItems: "center",
+  },
+  todayBadge: {
+    background: "#f59e0b",
+    color: "#fff",
+    borderRadius: 999,
+    padding: "4px 8px",
+    fontSize: 11,
+    fontWeight: 700,
+  },
+  overdueBadge: {
+    background: "#dc2626",
+    color: "#fff",
+    borderRadius: 999,
+    padding: "4px 8px",
+    fontSize: 11,
+    fontWeight: 700,
   },
   actions: {
     display: "flex",
