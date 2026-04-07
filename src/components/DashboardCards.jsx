@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 function getTodayString() {
   return new Date().toISOString().split("T")[0];
 }
@@ -16,9 +18,7 @@ function LeadAlertItem({ lead, type }) {
     <div style={styles.alertItem}>
       <div style={styles.alertTop}>
         <div style={styles.alertCompany}>{lead.company || "No Company"}</div>
-        <div
-          style={type === "overdue" ? styles.overdueBadge : styles.todayBadge}
-        >
+        <div style={type === "overdue" ? styles.overdueBadge : styles.todayBadge}>
           {type === "overdue" ? "Overdue" : "Today"}
         </div>
       </div>
@@ -84,7 +84,6 @@ function NotificationBanner({ overdueCount, todayCount, hotCount }) {
     title = "Follow-ups due today";
     text = `${todayCount} lead${todayCount > 1 ? "s" : ""} should be contacted today.`;
   } else if (hotCount > 0) {
-    boxStyle = styles.noticeBlue;
     title = "Hot leads available";
     text = `${hotCount} hot lead${hotCount > 1 ? "s are" : " is"} ready for fast action.`;
   }
@@ -106,14 +105,22 @@ function NotificationBanner({ overdueCount, todayCount, hotCount }) {
 }
 
 export default function DashboardCards({ leads = [] }) {
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const today = getTodayString();
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= 768);
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const totalLeads = leads.length;
   const hotLeads = leads.filter((lead) => lead.priority === "Hot").length;
   const newLeads = leads.filter((lead) => lead.status === "New").length;
-  const interestedLeads = leads.filter(
-    (lead) => lead.status === "Interested"
-  ).length;
+  const interestedLeads = leads.filter((lead) => lead.status === "Interested").length;
 
   const todayLeads = leads.filter(
     (lead) => lead.nextFollowUp && lead.nextFollowUp === today
@@ -165,7 +172,14 @@ export default function DashboardCards({ leads = [] }) {
         hotCount={hotLeads}
       />
 
-      <div style={styles.cardsGrid}>
+      <div
+        style={{
+          ...styles.cardsGrid,
+          gridTemplateColumns: isMobile
+            ? "repeat(2, minmax(0, 1fr))"
+            : "repeat(auto-fit, minmax(150px, 1fr))",
+        }}
+      >
         <div style={styles.card}>
           <div style={styles.cardLabel}>Total Leads</div>
           <div style={styles.cardValue}>{totalLeads}</div>
@@ -207,7 +221,14 @@ export default function DashboardCards({ leads = [] }) {
           </div>
         </div>
 
-        <div style={styles.teamGrid}>
+        <div
+          style={{
+            ...styles.teamGrid,
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "repeat(auto-fit, minmax(220px, 1fr))",
+          }}
+        >
           {teamStats.length === 0 ? (
             <EmptyState text="No team stats available yet" />
           ) : (
@@ -225,7 +246,12 @@ export default function DashboardCards({ leads = [] }) {
         </div>
       </div>
 
-      <div style={styles.alertsGrid}>
+      <div
+        style={{
+          ...styles.alertsGrid,
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+        }}
+      >
         <div style={styles.alertBox}>
           <div style={styles.alertHeader}>
             <div>
@@ -341,7 +367,6 @@ const styles = {
   },
   cardsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
     gap: 12,
   },
   card: {
@@ -393,7 +418,6 @@ const styles = {
   },
   teamGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     gap: 12,
   },
   teamCard: {
@@ -431,7 +455,6 @@ const styles = {
   },
   alertsGrid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
     gap: 16,
   },
   alertBox: {
