@@ -1,858 +1,663 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import Header from "../components/Header";
-import DashboardCards from "../components/DashboardCards";
+import { useEffect, useMemo, useState } from "react";
 import LeadForm from "../components/LeadForm";
-import LeadTable from "../components/LeadTable";
-import TeamManagement from "../components/TeamManagement";
-import WelcomeGuide from "../components/WelcomeGuide";
-import { supabase } from "../supabaseClient.js";
-
-const ACTIVITY_KEY = "crm_activity_v2";
-
-function getTodayString() {
-  return new Date().toISOString().split("T")[0];
-}
-
-function dbToLead(row, ownersMap = {}) {
-  return {
-    id: row.id,
-    company: row.company || "",
-    contact: row.contact || "",
-    phone: row.phone || "",
-    status: row.status || "New",
-    priority: row.priority || "Warm",
-    notes: row.notes || "",
-    lastContact: row.last_contact || "",
-    nextFollowUp: row.next_follow_up || "",
-    user_id: row.user_id || null,
-    ownerName: ownersMap[row.user_id] || "Unknown",
-  };
-}
-
-function buildPayload(leadData, ownerUserId) {
-  return {
-    company: leadData.company?.trim() || "",
-    contact: leadData.contact?.trim() || "",
-    phone: leadData.phone?.trim() || "",
-    status: leadData.status || "New",
-    priority: leadData.priority || "Warm",
-    notes: leadData.notes?.trim() || "",
-    last_contact: leadData.lastContact || null,
-    next_follow_up: leadData.nextFollowUp || null,
-    user_id: ownerUserId,
-  };
-}
-
-function parseCsvLine(line) {
-  const result = [];
-  let current = "";
-  let insideQuotes = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    const nextChar = line[i + 1];
-
-    if (char === '"' && insideQuotes && nextChar === '"') {
-      current += '"';
-      i += 1;
-      continue;
-    }
-
-    if (char === '"') {
-      insideQuotes = !insideQuotes;
-      continue;
-    }
-
-    if (char === "," && !insideQuotes) {
-      result.push(current);
-      current = "";
-      continue;
-    }
-
-    current += char;
-  }
-
-  result.push(current);
-  return result.map((item) => item.trim());
-}
-
-function parseCsvText(text) {
-  const safeText = String(text || "").replace(/\r/g, "").trim();
-  if (!safeText) return [];
-
-  const lines = safeText
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (lines.length < 2) return [];
-
-  const headers = parseCsvLine(lines[0]).map((header) =>
-    header.toLowerCase().replace(/\s+/g, "").replace(/_/g, "")
-  );
-
-  const rows = [];
-
-  for (let i = 1; i < lines.length; i += 1) {
-    const values = parseCsvLine(lines[i]);
-    const row = {};
-
-    headers.forEach((header, index) => {
-      row[header] = values[index] || "";
-    });
-
-    rows.push(row);
-  }
-
-  return rows;
-}
-
-function mapCsvRowToPayload(row, userId) {
-  const company = row.company || "";
-  const contact = row.contact || "";
-  const phone = row.phone || "";
-  const status = row.status || "New";
-  const priority = row.priority || "Warm";
-  const notes = row.notes || "";
-  const lastContact = row.lastcontact || row.lastcontactdate || "";
-  const nextFollowUp = row.nextfollowup || row.nextfollowupdate || "";
-
-  if (!company.trim() || !contact.trim() || !phone.trim()) {
-    return null;
-  }
-
-  return {
-    company: company.trim(),
-    contact: contact.trim(),
-    phone: phone.trim(),
-    status: status.trim() || "New",
-    priority: priority.trim() || "Warm",
-    notes: notes.trim(),
-    last_contact: lastContact.trim() || null,
-    next_follow_up: nextFollowUp.trim() || null,
-    user_id: userId,
-  };
-}
+import { supabase } from "../supabaseClient";
 
 export default function LeadsPage() {
-  const fileInputRef = useRef(null);
-
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== "undefined" ? window.innerWidth <= 768 : false
-  );
-
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [importing, setImporting] = useState(false);
-
-  const [showForm, setShowForm] = useState(false);
+  const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState(null);
 
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [priorityFilter, setPriorityFilter] = useState("All");
-  const [quickFilter, setQuickFilter] = useState("all");
-  const [ownerFilter, setOwnerFilter] = useState("All");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState("All Owners");
+  const [statusFilter, setStatusFilter] = useState("All Status");
+  const [priorityFilter, setPriorityFilter] = useState("All Priority");
 
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-
-  const [currentRole, setCurrentRole] = useState("sales");
-  const [currentUserName, setCurrentUserName] = useState("User");
-  const [ownersMap, setOwnersMap] = useState({});
-
-  const [activityLog, setActivityLog] = useState(() => {
+  const fetchLeads = async () => {
     try {
-      const saved = localStorage.getItem(ACTIVITY_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    function handleResize() {
-      setIsMobile(window.innerWidth <= 768);
-    }
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  useEffect(() => {
-    loadPageData();
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activityLog));
-  }, [activityLog]);
-
-  async function getViewerContext() {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return null;
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from("user_profiles")
-      .select("role, full_name, email")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (profileError) {
-      console.error("Profile load error:", profileError);
-    }
-
-    return {
-      user,
-      role: profile?.role || "sales",
-      fullName: profile?.full_name || "User",
-      email: profile?.email || user.email || "",
-    };
-  }
-
-  async function loadOwnersMap() {
-    const { data, error } = await supabase
-      .from("user_profiles")
-      .select("id, full_name");
-
-    if (error) {
-      console.error("Owners map load error:", error);
-      return {};
-    }
-
-    const map = {};
-    (data || []).forEach((item) => {
-      map[item.id] = item.full_name || "Unknown";
-    });
-
-    setOwnersMap(map);
-    return map;
-  }
-
-  async function loadPageData() {
-    setLoading(true);
-    setErrorMessage("");
-
-    const context = await getViewerContext();
-
-    if (!context) {
-      setCurrentRole("sales");
-      setCurrentUserName("User");
-      setLeads([]);
-      setLoading(false);
-      return;
-    }
-
-    setCurrentRole(context.role);
-    setCurrentUserName(context.fullName || "User");
-
-    const owners = await loadOwnersMap();
-
-    const { data, error } = await supabase
-      .from("leads")
-      .select("*")
-      .order("id", { ascending: false });
-
-    if (error) {
-      console.error("Load leads error:", error);
-      setErrorMessage(error.message);
-      setLoading(false);
-      return;
-    }
-
-    setLeads((data || []).map((row) => dbToLead(row, owners)));
-    setLoading(false);
-  }
-
-  function addActivity(text) {
-    const item = {
-      id: Date.now(),
-      text,
-      time: new Date().toLocaleString(),
-    };
-
-    setActivityLog((prev) => [item, ...prev].slice(0, 20));
-  }
-
-  function handleOpenAdd() {
-    setEditingLead(null);
-    setShowForm(true);
-    setErrorMessage("");
-    setSuccessMessage("");
-  }
-
-  function handleOpenEdit(lead) {
-    setEditingLead(lead);
-    setShowForm(true);
-    setErrorMessage("");
-    setSuccessMessage("");
-  }
-
-  function handleCloseForm() {
-    setShowForm(false);
-    setEditingLead(null);
-  }
-
-  async function handleSaveLead(leadData) {
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    if (!leadData.company?.trim()) {
-      setErrorMessage("Company is required");
-      return;
-    }
-
-    if (!leadData.contact?.trim()) {
-      setErrorMessage("Contact is required");
-      return;
-    }
-
-    if (!leadData.phone?.trim()) {
-      setErrorMessage("Phone is required");
-      return;
-    }
-
-    const context = await getViewerContext();
-
-    if (!context) {
-      setErrorMessage("You must be logged in");
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      const ownerUserId = editingLead
-        ? editingLead.user_id || context.user.id
-        : context.user.id;
-
-      const payload = buildPayload(leadData, ownerUserId);
-
-      if (editingLead) {
-        const { data, error } = await supabase
-          .from("leads")
-          .update(payload)
-          .eq("id", editingLead.id)
-          .select("*")
-          .single();
-
-        if (error) {
-          console.error("Update error:", error);
-          setErrorMessage(error.message);
-          return;
-        }
-
-        const updatedLead = dbToLead(data, ownersMap);
-
-        setLeads((prev) =>
-          prev.map((lead) => (lead.id === editingLead.id ? updatedLead : lead))
-        );
-
-        addActivity(`Updated lead for ${updatedLead.company || updatedLead.contact}`);
-        setSuccessMessage("Lead updated successfully");
-      } else {
-        const { data, error } = await supabase
-          .from("leads")
-          .insert([payload])
-          .select("*")
-          .single();
-
-        if (error) {
-          console.error("Insert error:", error);
-          setErrorMessage(error.message);
-          return;
-        }
-
-        const newLead = dbToLead(data, ownersMap);
-
-        setLeads((prev) => [newLead, ...prev]);
-        addActivity(`Added lead for ${newLead.company || newLead.contact}`);
-        setSuccessMessage("Lead added successfully");
-      }
-
-      setShowForm(false);
-      setEditingLead(null);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDeleteLead(id) {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this lead?"
-    );
-    if (!confirmDelete) return;
-
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const context = await getViewerContext();
-
-    if (!context) {
-      setErrorMessage("You must be logged in");
-      return;
-    }
-
-    if (context.role !== "admin") {
-      setErrorMessage("Only admin can delete leads");
-      return;
-    }
-
-    const leadToDelete = leads.find((lead) => lead.id === id);
-
-    const { error } = await supabase.from("leads").delete().eq("id", id);
-
-    if (error) {
-      console.error("Delete error:", error);
-      setErrorMessage(error.message);
-      return;
-    }
-
-    setLeads((prev) => prev.filter((lead) => lead.id !== id));
-    addActivity(
-      `Deleted lead for ${
-        leadToDelete?.company || leadToDelete?.contact || "Unknown"
-      }`
-    );
-    setSuccessMessage("Lead deleted successfully");
-  }
-
-  async function handleQuickUpdate(id, field, value) {
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const context = await getViewerContext();
-
-    if (!context) {
-      setErrorMessage("You must be logged in");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("leads")
-      .update({ [field]: value })
-      .eq("id", id)
-      .select("*")
-      .single();
-
-    if (error) {
-      console.error("Quick update error:", error);
-      setErrorMessage(error.message);
-      return;
-    }
-
-    const updatedLead = dbToLead(data, ownersMap);
-
-    setLeads((prev) =>
-      prev.map((item) => (item.id === id ? updatedLead : item))
-    );
-
-    addActivity(`Updated ${field} for ${updatedLead.company || updatedLead.contact}`);
-  }
-
-  async function handleImportCsvFile(event) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file) return;
-
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    const context = await getViewerContext();
-
-    if (!context) {
-      setErrorMessage("You must be logged in");
-      return;
-    }
-
-    setImporting(true);
-
-    try {
-      const text = await file.text();
-      const rows = parseCsvText(text);
-
-      if (!rows.length) {
-        setErrorMessage("CSV file is empty or invalid");
-        return;
-      }
-
-      const payloads = rows
-        .map((row) => mapCsvRowToPayload(row, context.user.id))
-        .filter(Boolean);
-
-      if (!payloads.length) {
-        setErrorMessage(
-          "No valid rows found. Required columns: company, contact, phone"
-        );
-        return;
-      }
+      setLoading(true);
 
       const { data, error } = await supabase
         .from("leads")
-        .insert(payloads)
-        .select("*");
+        .select("*")
+        .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Import error:", error);
-        setErrorMessage(error.message);
-        return;
-      }
+      if (error) throw error;
 
-      const importedLeads = (data || []).map((row) => dbToLead(row, ownersMap));
-
-      setLeads((prev) => [...importedLeads, ...prev]);
-
-      addActivity(
-        `${context.fullName || "User"} imported ${importedLeads.length} lead${
-          importedLeads.length > 1 ? "s" : ""
-        } from CSV`
-      );
-
-      setSuccessMessage(
-        `${importedLeads.length} lead${importedLeads.length > 1 ? "s" : ""} imported successfully`
-      );
+      setLeads(data || []);
+    } catch (error) {
+      console.error("Fetch leads error:", error);
+      alert(error.message || "حصل خطأ في تحميل الـ leads");
     } finally {
-      setImporting(false);
+      setLoading(false);
     }
-  }
+  };
 
-  const ownerOptions = useMemo(() => {
-    const names = Array.from(
-      new Set(leads.map((lead) => lead.ownerName).filter(Boolean))
-    ).sort((a, b) => a.localeCompare(b));
-    return ["All", ...names];
+  useEffect(() => {
+    fetchLeads();
+  }, []);
+
+  const owners = useMemo(() => {
+    const values = [...new Set(leads.map((lead) => lead.owner).filter(Boolean))];
+    return values;
   }, [leads]);
 
   const filteredLeads = useMemo(() => {
-    const today = getTodayString();
-
     return leads.filter((lead) => {
-      const searchText =
-        `${lead.company} ${lead.contact} ${lead.phone} ${lead.ownerName}`.toLowerCase();
+      const text = searchTerm.trim().toLowerCase();
 
-      const matchesSearch = searchText.includes(search.toLowerCase());
-      const matchesStatus =
-        statusFilter === "All" || lead.status === statusFilter;
-      const matchesPriority =
-        priorityFilter === "All" || lead.priority === priorityFilter;
+      const matchesSearch =
+        !text ||
+        lead.company?.toLowerCase().includes(text) ||
+        lead.company_type?.toLowerCase().includes(text) ||
+        lead.contact?.toLowerCase().includes(text) ||
+        lead.phone?.toLowerCase().includes(text) ||
+        lead.owner?.toLowerCase().includes(text);
+
       const matchesOwner =
-        ownerFilter === "All" || lead.ownerName === ownerFilter;
+        ownerFilter === "All Owners" || lead.owner === ownerFilter;
 
-      let matchesQuickFilter = true;
+      const matchesStatus =
+        statusFilter === "All Status" || lead.status === statusFilter;
 
-      if (quickFilter === "today") {
-        matchesQuickFilter = lead.nextFollowUp === today;
-      } else if (quickFilter === "overdue") {
-        matchesQuickFilter = !!lead.nextFollowUp && lead.nextFollowUp < today;
+      const matchesPriority =
+        priorityFilter === "All Priority" || lead.priority === priorityFilter;
+
+      return matchesSearch && matchesOwner && matchesStatus && matchesPriority;
+    });
+  }, [leads, searchTerm, ownerFilter, statusFilter, priorityFilter]);
+
+  const hotCount = leads.filter((lead) => lead.priority === "Hot").length;
+
+  const todayDate = new Date().toISOString().slice(0, 10);
+  const todayCount = leads.filter(
+    (lead) =>
+      lead.last_contact?.slice?.(0, 10) === todayDate ||
+      lead.created_at?.slice?.(0, 10) === todayDate
+  ).length;
+
+  const overdueCount = leads.filter((lead) => {
+    if (!lead.next_follow_up) return false;
+    return lead.next_follow_up.slice(0, 10) < todayDate;
+  }).length;
+
+  const handleAddLead = () => {
+    setEditingLead(null);
+    setIsLeadModalOpen(true);
+  };
+
+  const handleEditLead = (lead) => {
+    setEditingLead({
+      id: lead.id,
+      company: lead.company || "",
+      company_type: lead.company_type || "",
+      contact: lead.contact || "",
+      phone: lead.phone || "",
+      owner: lead.owner || "Shady",
+      status: lead.status || "New",
+      priority: lead.priority || "Warm",
+      notes: lead.notes || "",
+      lastContact: lead.last_contact ? String(lead.last_contact).slice(0, 10) : "",
+      nextFollowUp: lead.next_follow_up ? String(lead.next_follow_up).slice(0, 10) : "",
+    });
+
+    setIsLeadModalOpen(true);
+  };
+
+  const handleSaveLead = async (formData) => {
+    try {
+      setSaving(true);
+
+      const payload = {
+        company: formData.company?.trim() || "",
+        company_type: formData.company_type || "",
+        contact: formData.contact?.trim() || "",
+        phone: formData.phone?.trim() || "",
+        owner: formData.owner || editingLead?.owner || "Shady",
+        status: formData.status || "New",
+        priority: formData.priority || "Warm",
+        notes: formData.notes || "",
+        last_contact: formData.lastContact || null,
+        next_follow_up: formData.nextFollowUp || null,
+      };
+
+      if (editingLead?.id) {
+        const { error } = await supabase
+          .from("leads")
+          .update(payload)
+          .eq("id", editingLead.id);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("leads")
+          .insert([payload]);
+
+        if (error) throw error;
       }
 
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesPriority &&
-        matchesOwner &&
-        matchesQuickFilter
+      setIsLeadModalOpen(false);
+      setEditingLead(null);
+      await fetchLeads();
+    } catch (error) {
+      console.error("Save lead error:", error);
+      alert(error.message || "حصل خطأ في الحفظ");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteLead = async (leadId) => {
+    const confirmed = window.confirm("متأكد إنك عايز تمسح الـ lead دي؟");
+    if (!confirmed) return;
+
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .delete()
+        .eq("id", leadId);
+
+      if (error) throw error;
+
+      await fetchLeads();
+    } catch (error) {
+      console.error("Delete lead error:", error);
+      alert(error.message || "حصل خطأ في الحذف");
+    }
+  };
+
+  const handleStatusChange = async (leadId, value) => {
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .update({ status: value })
+        .eq("id", leadId);
+
+      if (error) throw error;
+
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.id === leadId ? { ...lead, status: value } : lead
+        )
       );
-    });
-  }, [leads, search, statusFilter, priorityFilter, ownerFilter, quickFilter]);
+    } catch (error) {
+      console.error(error);
+      alert("حصل خطأ في تعديل الـ status");
+    }
+  };
 
-  function exportCsv() {
-    const headers = [
-      "Company",
-      "Contact",
-      "Phone",
-      "Status",
-      "Priority",
-      "Last Contact",
-      "Next Follow-up",
-      "Notes",
-      "Owner Name",
-    ];
+  const handlePriorityChange = async (leadId, value) => {
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .update({ priority: value })
+        .eq("id", leadId);
 
-    const rows = filteredLeads.map((lead) => [
-      lead.company || "",
-      lead.contact || "",
-      lead.phone || "",
-      lead.status || "",
-      lead.priority || "",
-      lead.lastContact || "",
-      lead.nextFollowUp || "",
-      lead.notes || "",
-      lead.ownerName || "",
-    ]);
+      if (error) throw error;
 
-    const csvContent = [headers, ...rows]
-      .map((row) =>
-        row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")
-      )
-      .join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "leads.csv";
-    link.click();
-
-    URL.revokeObjectURL(url);
-  }
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.id === leadId ? { ...lead, priority: value } : lead
+        )
+      );
+    } catch (error) {
+      console.error(error);
+      alert("حصل خطأ في تعديل الـ priority");
+    }
+  };
 
   return (
-    <div style={styles.page}>
-      <div style={styles.container}>
-        <Header
-          displayName={currentUserName}
-          onLogout={async () => {
-            try {
-              await supabase.auth.signOut();
-            } catch {
-              // no-op
-            }
-            window.location.reload();
-          }}
-        />
-
-        <WelcomeGuide
-          currentRole={currentRole}
-          displayName={currentUserName}
-        />
-
-        <div
-          style={{
-            ...styles.roleBox,
-            width: isMobile ? "100%" : "fit-content",
-            textAlign: isMobile ? "center" : "left",
-            boxSizing: "border-box",
-          }}
-        >
-          {currentRole === "admin"
-            ? `Logged in as Admin · ${currentUserName}`
-            : `Logged in as Sales · ${currentUserName}`}
-        </div>
-
-        {errorMessage ? <div style={styles.errorBox}>{errorMessage}</div> : null}
-        {successMessage ? (
-          <div style={styles.successBox}>{successMessage}</div>
-        ) : null}
-
-        <DashboardCards leads={leads} />
-        <TeamManagement currentRole={currentRole} />
-
-        <div style={styles.activityBox}>
-          <div
-            style={{
-              ...styles.activityHeader,
-              flexDirection: isMobile ? "column" : "row",
-              alignItems: isMobile ? "stretch" : "center",
-            }}
-          >
-            <div>
-              <h3 style={styles.activityTitle}>Recent Activity</h3>
-              <div style={styles.activitySub}>Latest CRM actions</div>
-            </div>
-
-            <button style={styles.clearActivityBtn} onClick={() => setActivityLog([])}>
-              Clear Activity
-            </button>
-          </div>
-
-          <div style={styles.activityList}>
-            {activityLog.length === 0 ? (
-              <div style={styles.emptyActivity}>No recent activity yet</div>
-            ) : (
-              activityLog.map((item) => (
-                <div key={item.id} style={styles.activityItem}>
-                  <div style={styles.activityText}>{item.text}</div>
-                  <div style={styles.activityTime}>{item.time}</div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        <div
-          style={{
-            ...styles.topActionsRow,
-            flexDirection: isMobile ? "column" : "row",
-          }}
-        >
-          <button
-            style={{ ...styles.addLeadBtn, width: isMobile ? "100%" : "auto" }}
-            onClick={handleOpenAdd}
-          >
+    <div style={pageStyle}>
+      <div style={sectionStyle}>
+        <div style={topButtonsStyle}>
+          <button onClick={handleAddLead} style={addBtnStyle}>
             Add Lead
           </button>
 
-          <button
-            style={{ ...styles.importBtn, width: isMobile ? "100%" : "auto" }}
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-          >
-            {importing ? "Importing..." : "Import CSV"}
+          <button type="button" style={importBtnStyle}>
+            Import CSV
           </button>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            style={{ display: "none" }}
-            onChange={handleImportCsvFile}
-          />
         </div>
 
-        <LeadTable
-          leads={filteredLeads}
-          loading={loading}
-          search={search}
-          setSearch={setSearch}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-          priorityFilter={priorityFilter}
-          setPriorityFilter={setPriorityFilter}
-          quickFilter={quickFilter}
-          setQuickFilter={setQuickFilter}
-          ownerFilter={ownerFilter}
-          setOwnerFilter={setOwnerFilter}
-          ownerOptions={ownerOptions}
-          onEdit={handleOpenEdit}
-          onDelete={currentRole === "admin" ? handleDeleteLead : null}
-          onQuickUpdate={handleQuickUpdate}
-          onExportCSV={currentRole === "admin" ? exportCsv : null}
-        />
+        <div style={quickFiltersStyle}>
+          <button style={pillActiveStyle}>All</button>
+          <button style={pillStyle}>Today</button>
+          <button style={pillStyle}>Overdue</button>
+        </div>
 
-        <LeadForm
-          isOpen={showForm}
-          editingLead={editingLead}
-          onClose={handleCloseForm}
-          onSave={handleSaveLead}
-          saving={saving}
-        />
+        <div style={filterRowStyle}>
+          <input
+            type="text"
+            placeholder="Search by company / contact / phone / owner"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={searchInputStyle}
+          />
+
+          <select
+            value={ownerFilter}
+            onChange={(e) => setOwnerFilter(e.target.value)}
+            style={filterSelectStyle}
+          >
+            <option>All Owners</option>
+            {owners.map((owner) => (
+              <option key={owner} value={owner}>
+                {owner}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={filterSelectStyle}
+          >
+            <option>All Status</option>
+            <option>New</option>
+            <option>Contacted</option>
+            <option>Qualified</option>
+            <option>Won</option>
+            <option>Lost</option>
+          </select>
+
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+            style={filterSelectStyle}
+          >
+            <option>All Priority</option>
+            <option>Cold</option>
+            <option>Warm</option>
+            <option>Hot</option>
+          </select>
+
+          <button
+            type="button"
+            onClick={() => {
+              setSearchTerm("");
+              setOwnerFilter("All Owners");
+              setStatusFilter("All Status");
+              setPriorityFilter("All Priority");
+            }}
+            style={clearBtnStyle}
+          >
+            Clear Filters
+          </button>
+        </div>
+
+        <div style={statsRowStyle}>
+          <span style={showingStyle}>Showing: {filteredLeads.length}</span>
+          <span style={badgeHotStyle}>Hot: {hotCount}</span>
+          <span style={badgeTodayStyle}>Today: {todayCount}</span>
+          <span style={badgeOverdueStyle}>Overdue: {overdueCount}</span>
+        </div>
+
+        <div style={tableWrapStyle}>
+          <table style={tableStyle}>
+            <thead>
+              <tr style={theadRowStyle}>
+                <th style={thStyle}>Company</th>
+                <th style={thStyle}>Contact</th>
+                <th style={thStyle}>Phone</th>
+                <th style={thStyle}>Owner</th>
+                <th style={thStyle}>Status</th>
+                <th style={thStyle}>Priority</th>
+                <th style={thStyle}>Last Contact</th>
+                <th style={thStyle}>Next Follow-up</th>
+                <th style={thStyle}>Notes</th>
+                <th style={thStyle}>Action</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan="10" style={emptyCellStyle}>
+                    Loading...
+                  </td>
+                </tr>
+              ) : filteredLeads.length === 0 ? (
+                <tr>
+                  <td colSpan="10" style={emptyCellStyle}>
+                    No leads found
+                  </td>
+                </tr>
+              ) : (
+                filteredLeads.map((lead) => (
+                  <tr key={lead.id} style={rowStyle}>
+                    <td style={tdStyle}>{lead.company || "-"}</td>
+                    <td style={tdStyle}>{lead.contact || "-"}</td>
+                    <td style={tdStyle}>{lead.phone || "-"}</td>
+                    <td style={tdStyle}>{lead.owner || "-"}</td>
+
+                    <td style={tdStyle}>
+                      <select
+                        value={lead.status || "New"}
+                        onChange={(e) => handleStatusChange(lead.id, e.target.value)}
+                        style={inlineSelectStyle}
+                      >
+                        <option value="New">New</option>
+                        <option value="Contacted">Contacted</option>
+                        <option value="Qualified">Qualified</option>
+                        <option value="Won">Won</option>
+                        <option value="Lost">Lost</option>
+                      </select>
+                    </td>
+
+                    <td style={tdStyle}>
+                      <select
+                        value={lead.priority || "Warm"}
+                        onChange={(e) => handlePriorityChange(lead.id, e.target.value)}
+                        style={inlineSelectStyle}
+                      >
+                        <option value="Cold">Cold</option>
+                        <option value="Warm">Warm</option>
+                        <option value="Hot">Hot</option>
+                      </select>
+                    </td>
+
+                    <td style={tdStyle}>
+                      {lead.last_contact ? String(lead.last_contact).slice(0, 10) : "-"}
+                    </td>
+
+                    <td style={tdStyle}>
+                      {lead.next_follow_up ? String(lead.next_follow_up).slice(0, 10) : "-"}
+                    </td>
+
+                    <td style={notesTdStyle}>{lead.notes || "-"}</td>
+
+                    <td style={tdStyle}>
+                      <div style={actionBtnsWrapStyle}>
+                        <button
+                          onClick={() => handleEditLead(lead)}
+                          style={editBtnStyle}
+                        >
+                          Edit
+                        </button>
+
+                        <a
+                          href={`https://wa.me/${String(lead.phone || "").replace(/\D/g, "")}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={whatsappBtnStyle}
+                        >
+                          WhatsApp
+                        </a>
+
+                        <a
+                          href={`tel:${lead.phone || ""}`}
+                          style={callBtnStyle}
+                        >
+                          Call
+                        </a>
+
+                        <button
+                          onClick={() => handleDeleteLead(lead.id)}
+                          style={deleteBtnStyle}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      <LeadForm
+        isOpen={isLeadModalOpen}
+        editingLead={editingLead}
+        onClose={() => {
+          setIsLeadModalOpen(false);
+          setEditingLead(null);
+        }}
+        onSave={handleSaveLead}
+        saving={saving}
+      />
     </div>
   );
 }
 
-const styles = {
-  page: {
-    padding: 12,
-  },
-  container: {
-    maxWidth: 1400,
-    margin: "0 auto",
-  },
-  roleBox: {
-    background: "#1d4ed8",
-    color: "#fff",
-    padding: "10px 14px",
-    borderRadius: 12,
-    marginBottom: 16,
-    fontWeight: 700,
-  },
-  errorBox: {
-    background: "#7f1d1d",
-    color: "#fff",
-    padding: "12px 16px",
-    borderRadius: 12,
-    marginBottom: 16,
-    border: "1px solid rgba(255,255,255,0.1)",
-    lineHeight: 1.6,
-  },
-  successBox: {
-    background: "#14532d",
-    color: "#fff",
-    padding: "12px 16px",
-    borderRadius: 12,
-    marginBottom: 16,
-    border: "1px solid rgba(255,255,255,0.1)",
-    lineHeight: 1.6,
-  },
-  activityBox: {
-    background: "#0a1a36",
-    border: "1px solid rgba(255,255,255,0.12)",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-  },
-  activityHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 12,
-  },
-  activityTitle: {
-    margin: 0,
-    fontSize: 16,
-  },
-  activitySub: {
-    marginTop: 4,
-    fontSize: 12,
-    color: "#c9d8f5",
-  },
-  clearActivityBtn: {
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "#233452",
-    color: "#fff",
-    borderRadius: 8,
-    padding: "10px 12px",
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-  activityList: {
-    display: "grid",
-    gap: 10,
-  },
-  emptyActivity: {
-    border: "1px dashed rgba(255,255,255,0.15)",
-    borderRadius: 12,
-    padding: 14,
-    color: "#c9d8f5",
-  },
-  activityItem: {
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: 12,
-    padding: 12,
-    background: "#07142c",
-  },
-  activityText: {
-    fontSize: 14,
-    fontWeight: 700,
-    marginBottom: 4,
-    lineHeight: 1.6,
-  },
-  activityTime: {
-    fontSize: 12,
-    color: "#c9d8f5",
-    lineHeight: 1.5,
-  },
-  topActionsRow: {
-    display: "flex",
-    gap: 10,
-    marginBottom: 12,
-  },
-  addLeadBtn: {
-    border: "none",
-    background: "#2563eb",
-    color: "#fff",
-    borderRadius: 8,
-    padding: "12px 16px",
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-  importBtn: {
-    border: "none",
-    background: "#16a34a",
-    color: "#fff",
-    borderRadius: 8,
-    padding: "12px 16px",
-    cursor: "pointer",
-    fontWeight: 700,
-  },
+const pageStyle = {
+  minHeight: "100vh",
+  background: "#071a3d",
+  padding: "12px 16px 24px",
+  color: "white",
+};
+
+const sectionStyle = {
+  maxWidth: "1280px",
+  margin: "0 auto",
+};
+
+const topButtonsStyle = {
+  display: "flex",
+  gap: "8px",
+  marginBottom: "10px",
+};
+
+const addBtnStyle = {
+  background: "#2563eb",
+  color: "white",
+  border: "none",
+  borderRadius: "6px",
+  padding: "8px 14px",
+  cursor: "pointer",
+  fontSize: "12px",
+  fontWeight: 600,
+};
+
+const importBtnStyle = {
+  background: "#22c55e",
+  color: "white",
+  border: "none",
+  borderRadius: "6px",
+  padding: "8px 14px",
+  cursor: "pointer",
+  fontSize: "12px",
+  fontWeight: 600,
+};
+
+const quickFiltersStyle = {
+  display: "flex",
+  gap: "8px",
+  marginBottom: "10px",
+};
+
+const pillStyle = {
+  background: "#10224c",
+  color: "white",
+  border: "1px solid #1f3b69",
+  borderRadius: "999px",
+  padding: "6px 12px",
+  cursor: "pointer",
+  fontSize: "12px",
+};
+
+const pillActiveStyle = {
+  ...pillStyle,
+  background: "#2563eb",
+};
+
+const filterRowStyle = {
+  display: "grid",
+  gridTemplateColumns: "2fr 1fr 1fr 1fr auto",
+  gap: "8px",
+  marginBottom: "10px",
+};
+
+const searchInputStyle = {
+  width: "100%",
+  background: "#081735",
+  color: "white",
+  border: "1px solid #1f3b69",
+  borderRadius: "8px",
+  padding: "10px 12px",
+  outline: "none",
+  fontSize: "12px",
+};
+
+const filterSelectStyle = {
+  width: "100%",
+  background: "#081735",
+  color: "white",
+  border: "1px solid #1f3b69",
+  borderRadius: "8px",
+  padding: "10px 12px",
+  outline: "none",
+  fontSize: "12px",
+};
+
+const clearBtnStyle = {
+  background: "#334155",
+  color: "white",
+  border: "none",
+  borderRadius: "8px",
+  padding: "10px 12px",
+  cursor: "pointer",
+  fontSize: "12px",
+  fontWeight: 600,
+};
+
+const statsRowStyle = {
+  display: "flex",
+  gap: "8px",
+  alignItems: "center",
+  marginBottom: "12px",
+  flexWrap: "wrap",
+};
+
+const showingStyle = {
+  fontSize: "12px",
+  color: "#dbeafe",
+};
+
+const badgeBaseStyle = {
+  padding: "4px 8px",
+  borderRadius: "999px",
+  fontSize: "11px",
+  fontWeight: 700,
+};
+
+const badgeHotStyle = {
+  ...badgeBaseStyle,
+  background: "#7c2d12",
+  color: "#fff7ed",
+};
+
+const badgeTodayStyle = {
+  ...badgeBaseStyle,
+  background: "#713f12",
+  color: "#fef3c7",
+};
+
+const badgeOverdueStyle = {
+  ...badgeBaseStyle,
+  background: "#7f1d1d",
+  color: "#fee2e2",
+};
+
+const tableWrapStyle = {
+  overflowX: "auto",
+  border: "1px solid #1f3b69",
+  borderRadius: "12px",
+};
+
+const tableStyle = {
+  width: "100%",
+  borderCollapse: "collapse",
+  minWidth: "1300px",
+  background: "#081735",
+};
+
+const theadRowStyle = {
+  background: "#10224c",
+};
+
+const thStyle = {
+  textAlign: "left",
+  padding: "12px 10px",
+  fontSize: "12px",
+  color: "#dbeafe",
+};
+
+const rowStyle = {
+  borderTop: "1px solid #16325c",
+};
+
+const tdStyle = {
+  padding: "12px 10px",
+  fontSize: "12px",
+  color: "white",
+  verticalAlign: "top",
+};
+
+const notesTdStyle = {
+  ...tdStyle,
+  minWidth: "180px",
+  maxWidth: "260px",
+};
+
+const emptyCellStyle = {
+  padding: "24px",
+  textAlign: "center",
+  color: "#cbd5e1",
+};
+
+const inlineSelectStyle = {
+  background: "#10224c",
+  color: "white",
+  border: "1px solid #1f3b69",
+  borderRadius: "6px",
+  padding: "6px 8px",
+  fontSize: "12px",
+  outline: "none",
+};
+
+const actionBtnsWrapStyle = {
+  display: "flex",
+  gap: "6px",
+  flexWrap: "wrap",
+};
+
+const editBtnStyle = {
+  background: "#2563eb",
+  color: "white",
+  border: "none",
+  borderRadius: "6px",
+  padding: "6px 10px",
+  cursor: "pointer",
+  fontSize: "11px",
+};
+
+const whatsappBtnStyle = {
+  background: "#22c55e",
+  color: "white",
+  textDecoration: "none",
+  borderRadius: "6px",
+  padding: "6px 10px",
+  fontSize: "11px",
+};
+
+const callBtnStyle = {
+  background: "#9333ea",
+  color: "white",
+  textDecoration: "none",
+  borderRadius: "6px",
+  padding: "6px 10px",
+  fontSize: "11px",
+};
+
+const deleteBtnStyle = {
+  background: "#ef4444",
+  color: "white",
+  border: "none",
+  borderRadius: "6px",
+  padding: "6px 10px",
+  cursor: "pointer",
+  fontSize: "11px",
 };
