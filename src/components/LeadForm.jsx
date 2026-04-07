@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 
 const emptyLead = {
   company: "",
+  company_type: "",
   contact: "",
   phone: "",
+  owner: "",
   status: "New",
   priority: "Warm",
   notes: "",
@@ -24,8 +26,10 @@ export default function LeadForm({
     if (editingLead) {
       setFormData({
         company: editingLead.company || "",
+        company_type: editingLead.company_type || "",
         contact: editingLead.contact || "",
         phone: editingLead.phone || "",
+        owner: editingLead.owner || "",
         status: editingLead.status || "New",
         priority: editingLead.priority || "Warm",
         notes: editingLead.notes || "",
@@ -37,137 +41,167 @@ export default function LeadForm({
     }
   }, [editingLead, isOpen]);
 
-  if (!isOpen) return null;
-
-  function handleChange(field, value) {
+  const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [field]: value,
+      [name]: value,
     }));
-  }
+  };
 
-  function handleSubmit(e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSave?.(formData);
-  }
+    await onSave(formData);
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <div style={styles.header}>
+    <div style={overlayStyle}>
+      <div style={modalStyle}>
+        <div style={headerStyle}>
           <div>
-            <div style={styles.title}>
+            <h2 style={titleStyle}>
               {editingLead ? "Edit Lead" : "Add New Lead"}
-            </div>
-            <div style={styles.subtitle}>
-              Fill in the client details and save
-            </div>
+            </h2>
+            <p style={subtitleStyle}>Fill in the client details and save</p>
           </div>
 
-          <button style={styles.closeBtn} onClick={onClose} type="button">
-            ✕
+          <button type="button" onClick={onClose} style={closeBtnStyle}>
+            ×
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.grid}>
-            <div style={styles.field}>
-              <label style={styles.label}>Company</label>
+        <form onSubmit={handleSubmit}>
+          <div style={gridStyle}>
+            <div>
+              <label style={labelStyle}>Company Name</label>
               <input
-                style={styles.input}
                 type="text"
+                name="company"
                 value={formData.company}
-                onChange={(e) => handleChange("company", e.target.value)}
+                onChange={handleChange}
                 placeholder="Company name"
+                style={inputStyle}
               />
             </div>
 
-            <div style={styles.field}>
-              <label style={styles.label}>Contact</label>
-              <input
-                style={styles.input}
-                type="text"
-                value={formData.contact}
-                onChange={(e) => handleChange("contact", e.target.value)}
-                placeholder="Contact person"
-              />
-            </div>
-
-            <div style={styles.field}>
-              <label style={styles.label}>Phone</label>
-              <input
-                style={styles.input}
-                type="text"
-                value={formData.phone}
-                onChange={(e) => handleChange("phone", e.target.value)}
-                placeholder="Phone number"
-              />
-            </div>
-
-            <div style={styles.field}>
-              <label style={styles.label}>Status</label>
+            <div>
+              <label style={labelStyle}>Company Type</label>
               <select
-                style={styles.input}
+                name="company_type"
+                value={formData.company_type}
+                onChange={handleChange}
+                style={inputStyle}
+              >
+                <option value="">Select company type</option>
+                <option value="Real estate">Real estate</option>
+                <option value="Medical">Medical</option>
+                <option value="Education">Education</option>
+                <option value="E-commerce">E-commerce</option>
+                <option value="Automotive">Automotive</option>
+                <option value="Construction">Construction</option>
+                <option value="Services">Services</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Contact</label>
+              <input
+                type="text"
+                name="contact"
+                value={formData.contact}
+                onChange={handleChange}
+                placeholder="Contact person"
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Phone</label>
+              <input
+                type="text"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="Phone number"
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Status</label>
+              <select
+                name="status"
                 value={formData.status}
-                onChange={(e) => handleChange("status", e.target.value)}
+                onChange={handleChange}
+                style={inputStyle}
               >
                 <option value="New">New</option>
-                <option value="Interested">Interested</option>
-                <option value="Follow Up">Follow Up</option>
+                <option value="Contacted">Contacted</option>
+                <option value="Qualified">Qualified</option>
+                <option value="Won">Won</option>
+                <option value="Lost">Lost</option>
               </select>
             </div>
 
-            <div style={styles.field}>
-              <label style={styles.label}>Priority</label>
+            <div>
+              <label style={labelStyle}>Priority</label>
               <select
-                style={styles.input}
+                name="priority"
                 value={formData.priority}
-                onChange={(e) => handleChange("priority", e.target.value)}
+                onChange={handleChange}
+                style={inputStyle}
               >
-                <option value="Hot">Hot</option>
-                <option value="Warm">Warm</option>
                 <option value="Cold">Cold</option>
+                <option value="Warm">Warm</option>
+                <option value="Hot">Hot</option>
               </select>
             </div>
 
-            <div style={styles.field}>
-              <label style={styles.label}>Last Contact</label>
+            <div>
+              <label style={labelStyle}>Last Contact</label>
               <input
-                style={styles.input}
                 type="date"
+                name="lastContact"
                 value={formData.lastContact}
-                onChange={(e) => handleChange("lastContact", e.target.value)}
+                onChange={handleChange}
+                style={inputStyle}
               />
             </div>
 
-            <div style={styles.field}>
-              <label style={styles.label}>Next Follow-up</label>
+            <div>
+              <label style={labelStyle}>Next Follow Up</label>
               <input
-                style={styles.input}
                 type="date"
+                name="nextFollowUp"
                 value={formData.nextFollowUp}
-                onChange={(e) => handleChange("nextFollowUp", e.target.value)}
+                onChange={handleChange}
+                style={inputStyle}
+              />
+            </div>
+
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={labelStyle}>Notes</label>
+              <textarea
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+                placeholder="Write any notes here"
+                rows={4}
+                style={{ ...inputStyle, resize: "vertical" }}
               />
             </div>
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Notes</label>
-            <textarea
-              style={styles.textarea}
-              value={formData.notes}
-              onChange={(e) => handleChange("notes", e.target.value)}
-              placeholder="Write any notes here"
-            />
-          </div>
-
-          <div style={styles.actions}>
-            <button type="button" style={styles.cancelBtn} onClick={onClose}>
-              Cancel
+          <div style={actionsStyle}>
+            <button type="submit" disabled={saving} style={saveBtnStyle}>
+              {saving ? "Saving..." : editingLead ? "Update Lead" : "Add Lead"}
             </button>
 
-            <button type="submit" style={styles.saveBtn} disabled={saving}>
-              {saving ? "Saving..." : editingLead ? "Save Changes" : "Add Lead"}
+            <button type="button" onClick={onClose} style={cancelBtnStyle}>
+              Cancel
             </button>
           </div>
         </form>
@@ -176,127 +210,104 @@ export default function LeadForm({
   );
 }
 
-const styles = {
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.60)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 12,
-    zIndex: 9999,
-  },
-  modal: {
-    width: "100%",
-    maxWidth: 760,
-    maxHeight: "92vh",
-    overflowY: "auto",
-    background: "#08152d",
-    border: "1px solid rgba(255,255,255,0.10)",
-    borderRadius: 18,
-    boxSizing: "border-box",
-    padding: 18,
-    boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
-  },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 12,
-    marginBottom: 18,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 800,
-    color: "#fff",
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: "#bcd0f7",
-  },
-  closeBtn: {
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "#13284a",
-    color: "#fff",
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    cursor: "pointer",
-    fontSize: 16,
-    flexShrink: 0,
-  },
-  form: {
-    display: "grid",
-    gap: 14,
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: 14,
-  },
-  field: {
-    display: "grid",
-    gap: 8,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: "#dbe7ff",
-  },
-  input: {
-    width: "100%",
-    boxSizing: "border-box",
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "#0c1d3b",
-    color: "#fff",
-    borderRadius: 12,
-    padding: "12px 14px",
-    outline: "none",
-    fontSize: 14,
-  },
-  textarea: {
-    width: "100%",
-    minHeight: 120,
-    resize: "vertical",
-    boxSizing: "border-box",
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "#0c1d3b",
-    color: "#fff",
-    borderRadius: 12,
-    padding: "12px 14px",
-    outline: "none",
-    fontSize: 14,
-    lineHeight: 1.6,
-  },
-  actions: {
-    display: "flex",
-    justifyContent: "flex-end",
-    flexWrap: "wrap",
-    gap: 10,
-    marginTop: 4,
-    position: "sticky",
-    bottom: 0,
-    background: "#08152d",
-    paddingTop: 10,
-  },
-  cancelBtn: {
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "#223556",
-    color: "#fff",
-    borderRadius: 10,
-    padding: "11px 16px",
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-  saveBtn: {
-    border: "none",
-    background: "#2563eb",
-    color: "#fff",
-    borderRadius: 10,
-    padding: "11px 16px",
-    cursor: "pointer",
-    fontWeight: 700,
-  },
+const overlayStyle = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(0, 0, 0, 0.45)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "20px",
+  zIndex: 9999,
+};
+
+const modalStyle = {
+  width: "100%",
+  maxWidth: "760px",
+  background: "#081735",
+  border: "1px solid #16325c",
+  borderRadius: "16px",
+  padding: "18px",
+  color: "white",
+  boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+};
+
+const headerStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  marginBottom: "16px",
+};
+
+const titleStyle = {
+  margin: 0,
+  fontSize: "28px",
+  fontWeight: 700,
+};
+
+const subtitleStyle = {
+  margin: "4px 0 0",
+  color: "#cbd5e1",
+  fontSize: "12px",
+};
+
+const closeBtnStyle = {
+  width: "30px",
+  height: "30px",
+  borderRadius: "8px",
+  border: "1px solid #33527a",
+  background: "#18345b",
+  color: "white",
+  cursor: "pointer",
+  fontSize: "18px",
+};
+
+const gridStyle = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: "12px",
+};
+
+const labelStyle = {
+  display: "block",
+  marginBottom: "6px",
+  fontSize: "12px",
+  color: "#dbeafe",
+};
+
+const inputStyle = {
+  width: "100%",
+  padding: "10px 12px",
+  borderRadius: "8px",
+  border: "1px solid #2a4770",
+  background: "#10224c",
+  color: "white",
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+const actionsStyle = {
+  display: "flex",
+  gap: "10px",
+  marginTop: "16px",
+};
+
+const saveBtnStyle = {
+  background: "#22c55e",
+  color: "white",
+  border: "none",
+  borderRadius: "8px",
+  padding: "10px 16px",
+  cursor: "pointer",
+  fontWeight: 600,
+};
+
+const cancelBtnStyle = {
+  background: "#64748b",
+  color: "white",
+  border: "none",
+  borderRadius: "8px",
+  padding: "10px 16px",
+  cursor: "pointer",
+  fontWeight: 600,
 };
