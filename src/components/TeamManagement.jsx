@@ -13,13 +13,14 @@ function getInitials(name, email) {
 }
 
 function formatRole(role) {
-  if (!role) return "sales";
-  return role.toLowerCase();
+  return String(role || "sales").toLowerCase();
 }
 
 export default function TeamManagement({ currentRole }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState(null);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     if (currentRole !== "admin") {
@@ -32,6 +33,7 @@ export default function TeamManagement({ currentRole }) {
 
   async function loadMembers() {
     setLoading(true);
+    setMessage("");
 
     const { data, error } = await supabase
       .from("user_profiles")
@@ -45,8 +47,41 @@ export default function TeamManagement({ currentRole }) {
       return;
     }
 
-    setMembers(data || []);
+    const safeMembers = (data || []).map((member) => ({
+      ...member,
+      role: formatRole(member.role),
+    }));
+
+    setMembers(safeMembers);
     setLoading(false);
+  }
+
+  function handleRoleChange(id, value) {
+    setMembers((prev) =>
+      prev.map((member) =>
+        member.id === id ? { ...member, role: formatRole(value) } : member
+      )
+    );
+  }
+
+  async function handleSaveRole(member) {
+    setSavingId(member.id);
+    setMessage("");
+
+    const { error } = await supabase
+      .from("user_profiles")
+      .update({ role: formatRole(member.role) })
+      .eq("id", member.id);
+
+    if (error) {
+      console.error("Update role error:", error);
+      setMessage(error.message);
+      setSavingId(null);
+      return;
+    }
+
+    setMessage(`Role updated for ${member.full_name || member.email}`);
+    setSavingId(null);
   }
 
   const stats = useMemo(() => {
@@ -63,9 +98,13 @@ export default function TeamManagement({ currentRole }) {
       <div style={styles.header}>
         <div>
           <div style={styles.title}>Team Management</div>
-          <div style={styles.subtitle}>Current CRM members and access roles</div>
+          <div style={styles.subtitle}>
+            Review team members and change access roles
+          </div>
         </div>
       </div>
+
+      {message ? <div style={styles.messageBox}>{message}</div> : null}
 
       <div style={styles.statsRow}>
         <div style={styles.statCard}>
@@ -113,6 +152,27 @@ export default function TeamManagement({ currentRole }) {
               </div>
 
               <div style={styles.email}>{member.email || "-"}</div>
+
+              <div style={styles.roleSection}>
+                <label style={styles.roleLabel}>Role</label>
+
+                <select
+                  style={styles.roleSelect}
+                  value={formatRole(member.role)}
+                  onChange={(e) => handleRoleChange(member.id, e.target.value)}
+                >
+                  <option value="sales">Sales</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              <button
+                style={styles.saveBtn}
+                onClick={() => handleSaveRole(member)}
+                disabled={savingId === member.id}
+              >
+                {savingId === member.id ? "Saving..." : "Save Role"}
+              </button>
             </div>
           ))}
         </div>
@@ -142,6 +202,14 @@ const styles = {
     fontSize: 12,
     color: "#c9d8f5",
   },
+  messageBox: {
+    background: "#14532d",
+    color: "#fff",
+    borderRadius: 12,
+    padding: "12px 14px",
+    marginBottom: 14,
+    fontSize: 14,
+  },
   statsRow: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
@@ -166,7 +234,7 @@ const styles = {
   },
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
     gap: 12,
   },
   card: {
@@ -174,13 +242,14 @@ const styles = {
     border: "1px solid rgba(255,255,255,0.08)",
     borderRadius: 16,
     padding: 14,
+    display: "grid",
+    gap: 12,
   },
   topRow: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     gap: 10,
-    marginBottom: 12,
   },
   avatar: {
     width: 42,
@@ -214,13 +283,39 @@ const styles = {
     fontSize: 15,
     fontWeight: 800,
     color: "#fff",
-    marginBottom: 6,
     lineHeight: 1.4,
   },
   email: {
     fontSize: 13,
     color: "#c9d8f5",
     wordBreak: "break-word",
+  },
+  roleSection: {
+    display: "grid",
+    gap: 8,
+  },
+  roleLabel: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#dbe7ff",
+  },
+  roleSelect: {
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "#0c1d3b",
+    color: "#fff",
+    borderRadius: 10,
+    padding: "11px 12px",
+    outline: "none",
+    fontSize: 14,
+  },
+  saveBtn: {
+    border: "none",
+    background: "#16a34a",
+    color: "#fff",
+    borderRadius: 10,
+    padding: "11px 14px",
+    cursor: "pointer",
+    fontWeight: 700,
   },
   emptyBox: {
     border: "1px dashed rgba(255,255,255,0.14)",
