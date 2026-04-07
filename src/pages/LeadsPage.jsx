@@ -13,22 +13,6 @@ function getTodayString() {
   return new Date().toISOString().split("T")[0];
 }
 
-function dbToLead(row, ownersMap = {}) {
-  return {
-    id: row.id,
-    company: row.company || "",
-    contact: row.contact || "",
-    phone: row.phone || "",
-    status: row.status || "New",
-    priority: row.priority || "Warm",
-    notes: row.notes || "",
-    lastContact: row.last_contact || "",
-    nextFollowUp: row.next_follow_up || "",
-    user_id: row.user_id || null,
-    ownerName: ownersMap[row.user_id] || "Unknown",
-  };
-}
-
 function buildPayload(leadData, ownerUserId) {
   return {
     company: leadData.company?.trim() || "",
@@ -123,6 +107,7 @@ function mapCsvRowToPayload(row, userId) {
 
   return {
     company: company.trim(),
+    company_type: companyType.trim(),
     contact: contact.trim(),
     phone: phone.trim(),
     status: status.trim() || "New",
@@ -534,8 +519,8 @@ export default function LeadsPage() {
     const today = getTodayString();
 
     return leads.filter((lead) => {
-      const searchText =
-        `${lead.company} ${lead.contact} ${lead.phone} ${lead.ownerName}`.toLowerCase();
+const searchText =
+  `${lead.company} ${lead.company_type} ${lead.contact} ${lead.phone} ${lead.ownerName}`.toLowerCase();
 
       const matchesSearch = searchText.includes(search.toLowerCase());
       const matchesStatus =
