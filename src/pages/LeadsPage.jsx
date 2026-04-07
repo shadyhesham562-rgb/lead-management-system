@@ -3,6 +3,7 @@ import Header from "../components/Header";
 import DashboardCards from "../components/DashboardCards";
 import LeadForm from "../components/LeadForm";
 import LeadTable from "../components/LeadTable";
+import TeamManagement from "../components/TeamManagement";
 import { supabase } from "../supabaseClient.js";
 
 const ACTIVITY_KEY = "crm_activity_v2";
@@ -617,6 +618,7 @@ export default function LeadsPage() {
       ) : null}
 
       <DashboardCards leads={leads} />
+      <TeamManagement currentRole={currentRole} />
 
       <div style={styles.activityBox}>
         <div style={styles.activityHeader}>
