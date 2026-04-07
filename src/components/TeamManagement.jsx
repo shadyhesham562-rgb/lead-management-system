@@ -21,6 +21,18 @@ export default function TeamManagement({ currentRole }) {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
   const [message, setMessage] = useState("");
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth <= 768 : false
+  );
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= 768);
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     if (currentRole !== "admin") {
@@ -106,7 +118,14 @@ export default function TeamManagement({ currentRole }) {
 
       {message ? <div style={styles.messageBox}>{message}</div> : null}
 
-      <div style={styles.statsRow}>
+      <div
+        style={{
+          ...styles.statsRow,
+          gridTemplateColumns: isMobile
+            ? "1fr"
+            : "repeat(auto-fit, minmax(140px, 1fr))",
+        }}
+      >
         <div style={styles.statCard}>
           <div style={styles.statLabel}>Total Members</div>
           <div style={styles.statValue}>{stats.total}</div>
@@ -128,12 +147,29 @@ export default function TeamManagement({ currentRole }) {
       ) : members.length === 0 ? (
         <div style={styles.emptyBox}>No team members found</div>
       ) : (
-        <div style={styles.grid}>
+        <div
+          style={{
+            ...styles.grid,
+            gridTemplateColumns: isMobile
+              ? "1fr"
+              : "repeat(auto-fit, minmax(240px, 1fr))",
+          }}
+        >
           {members.map((member) => (
             <div key={member.id} style={styles.card}>
               <div style={styles.topRow}>
-                <div style={styles.avatar}>
-                  {getInitials(member.full_name, member.email)}
+                <div style={styles.memberInfo}>
+                  <div style={styles.avatar}>
+                    {getInitials(member.full_name, member.email)}
+                  </div>
+
+                  <div style={styles.identityBlock}>
+                    <div style={styles.name}>
+                      {member.full_name || member.email || "Unknown User"}
+                    </div>
+
+                    <div style={styles.email}>{member.email || "-"}</div>
+                  </div>
                 </div>
 
                 <div
@@ -146,12 +182,6 @@ export default function TeamManagement({ currentRole }) {
                   {formatRole(member.role) === "admin" ? "Admin" : "Sales"}
                 </div>
               </div>
-
-              <div style={styles.name}>
-                {member.full_name || member.email || "Unknown User"}
-              </div>
-
-              <div style={styles.email}>{member.email || "-"}</div>
 
               <div style={styles.roleSection}>
                 <label style={styles.roleLabel}>Role</label>
@@ -201,6 +231,7 @@ const styles = {
     marginTop: 4,
     fontSize: 12,
     color: "#c9d8f5",
+    lineHeight: 1.6,
   },
   messageBox: {
     background: "#14532d",
@@ -212,7 +243,6 @@ const styles = {
   },
   statsRow: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
     gap: 12,
     marginBottom: 16,
   },
@@ -234,7 +264,6 @@ const styles = {
   },
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
     gap: 12,
   },
   card: {
@@ -243,17 +272,28 @@ const styles = {
     borderRadius: 16,
     padding: 14,
     display: "grid",
-    gap: 12,
+    gap: 14,
   },
   topRow: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    gap: 10,
+    alignItems: "flex-start",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  memberInfo: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 12,
+    flex: 1,
+    minWidth: 0,
+  },
+  identityBlock: {
+    minWidth: 0,
   },
   avatar: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: 999,
     background: "#1d4ed8",
     color: "#fff",
@@ -262,6 +302,7 @@ const styles = {
     justifyContent: "center",
     fontWeight: 800,
     fontSize: 14,
+    flexShrink: 0,
   },
   adminBadge: {
     background: "#dc2626",
@@ -270,6 +311,7 @@ const styles = {
     padding: "6px 10px",
     fontSize: 12,
     fontWeight: 700,
+    whiteSpace: "nowrap",
   },
   salesBadge: {
     background: "#2563eb",
@@ -278,17 +320,21 @@ const styles = {
     padding: "6px 10px",
     fontSize: 12,
     fontWeight: 700,
+    whiteSpace: "nowrap",
   },
   name: {
     fontSize: 15,
     fontWeight: 800,
     color: "#fff",
     lineHeight: 1.4,
+    wordBreak: "break-word",
+    marginBottom: 6,
   },
   email: {
     fontSize: 13,
     color: "#c9d8f5",
     wordBreak: "break-word",
+    lineHeight: 1.6,
   },
   roleSection: {
     display: "grid",
@@ -304,18 +350,21 @@ const styles = {
     background: "#0c1d3b",
     color: "#fff",
     borderRadius: 10,
-    padding: "11px 12px",
+    padding: "12px 12px",
     outline: "none",
     fontSize: 14,
+    width: "100%",
+    boxSizing: "border-box",
   },
   saveBtn: {
     border: "none",
     background: "#16a34a",
     color: "#fff",
     borderRadius: 10,
-    padding: "11px 14px",
+    padding: "12px 14px",
     cursor: "pointer",
     fontWeight: 700,
+    width: "100%",
   },
   emptyBox: {
     border: "1px dashed rgba(255,255,255,0.14)",
