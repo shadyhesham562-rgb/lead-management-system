@@ -136,6 +136,10 @@ function mapCsvRowToPayload(row, userId) {
 export default function LeadsPage() {
   const fileInputRef = useRef(null);
 
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth <= 768 : false
+  );
+
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -165,6 +169,15 @@ export default function LeadsPage() {
       return [];
     }
   });
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= 768);
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     loadPageData();
@@ -536,8 +549,7 @@ export default function LeadsPage() {
       if (quickFilter === "today") {
         matchesQuickFilter = lead.nextFollowUp === today;
       } else if (quickFilter === "overdue") {
-        matchesQuickFilter =
-          !!lead.nextFollowUp && lead.nextFollowUp < today;
+        matchesQuickFilter = !!lead.nextFollowUp && lead.nextFollowUp < today;
       }
 
       return (
@@ -594,117 +606,141 @@ export default function LeadsPage() {
 
   return (
     <div style={styles.page}>
-      <Header
-        displayName={currentUserName}
-        onLogout={async () => {
-          try {
-            await supabase.auth.signOut();
-          } catch {
-            // no-op
-          }
-          window.location.reload();
-        }}
-      />
+      <div style={styles.container}>
+        <Header
+          displayName={currentUserName}
+          onLogout={async () => {
+            try {
+              await supabase.auth.signOut();
+            } catch {
+              // no-op
+            }
+            window.location.reload();
+          }}
+        />
 
-      {currentRole === "admin" ? (
-        <div style={styles.roleBox}>Logged in as Admin · {currentUserName}</div>
-      ) : (
-        <div style={styles.roleBox}>Logged in as Sales · {currentUserName}</div>
-      )}
+        <div
+          style={{
+            ...styles.roleBox,
+            width: isMobile ? "100%" : "fit-content",
+            textAlign: isMobile ? "center" : "left",
+            boxSizing: "border-box",
+          }}
+        >
+          {currentRole === "admin"
+            ? `Logged in as Admin · ${currentUserName}`
+            : `Logged in as Sales · ${currentUserName}`}
+        </div>
 
-      {errorMessage ? <div style={styles.errorBox}>{errorMessage}</div> : null}
-      {successMessage ? (
-        <div style={styles.successBox}>{successMessage}</div>
-      ) : null}
+        {errorMessage ? <div style={styles.errorBox}>{errorMessage}</div> : null}
+        {successMessage ? (
+          <div style={styles.successBox}>{successMessage}</div>
+        ) : null}
 
-      <DashboardCards leads={leads} />
-      <TeamManagement currentRole={currentRole} />
+        <DashboardCards leads={leads} />
+        <TeamManagement currentRole={currentRole} />
 
-      <div style={styles.activityBox}>
-        <div style={styles.activityHeader}>
-          <div>
-            <h3 style={styles.activityTitle}>Recent Activity</h3>
-            <div style={styles.activitySub}>Latest CRM actions</div>
+        <div style={styles.activityBox}>
+          <div
+            style={{
+              ...styles.activityHeader,
+              flexDirection: isMobile ? "column" : "row",
+              alignItems: isMobile ? "stretch" : "center",
+            }}
+          >
+            <div>
+              <h3 style={styles.activityTitle}>Recent Activity</h3>
+              <div style={styles.activitySub}>Latest CRM actions</div>
+            </div>
+
+            <button style={styles.clearActivityBtn} onClick={() => setActivityLog([])}>
+              Clear Activity
+            </button>
           </div>
 
-          <button
-            style={styles.clearActivityBtn}
-            onClick={() => setActivityLog([])}
-          >
-            Clear Activity
-          </button>
+          <div style={styles.activityList}>
+            {activityLog.length === 0 ? (
+              <div style={styles.emptyActivity}>No recent activity yet</div>
+            ) : (
+              activityLog.map((item) => (
+                <div key={item.id} style={styles.activityItem}>
+                  <div style={styles.activityText}>{item.text}</div>
+                  <div style={styles.activityTime}>{item.time}</div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
 
-        <div style={styles.activityList}>
-          {activityLog.length === 0 ? (
-            <div style={styles.emptyActivity}>No recent activity yet</div>
-          ) : (
-            activityLog.map((item) => (
-              <div key={item.id} style={styles.activityItem}>
-                <div style={styles.activityText}>{item.text}</div>
-                <div style={styles.activityTime}>{item.time}</div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div style={styles.topActionsRow}>
-        <button style={styles.addLeadBtn} onClick={handleOpenAdd}>
-          Add Lead
-        </button>
-
-        <button
-          style={styles.importBtn}
-          onClick={() => fileInputRef.current?.click()}
-          disabled={importing}
+        <div
+          style={{
+            ...styles.topActionsRow,
+            flexDirection: isMobile ? "column" : "row",
+          }}
         >
-          {importing ? "Importing..." : "Import CSV"}
-        </button>
+          <button
+            style={{ ...styles.addLeadBtn, width: isMobile ? "100%" : "auto" }}
+            onClick={handleOpenAdd}
+          >
+            Add Lead
+          </button>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv"
-          style={{ display: "none" }}
-          onChange={handleImportCsvFile}
+          <button
+            style={{ ...styles.importBtn, width: isMobile ? "100%" : "auto" }}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+          >
+            {importing ? "Importing..." : "Import CSV"}
+          </button>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            style={{ display: "none" }}
+            onChange={handleImportCsvFile}
+          />
+        </div>
+
+        <LeadTable
+          leads={filteredLeads}
+          loading={loading}
+          search={search}
+          setSearch={setSearch}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          priorityFilter={priorityFilter}
+          setPriorityFilter={setPriorityFilter}
+          quickFilter={quickFilter}
+          setQuickFilter={setQuickFilter}
+          ownerFilter={ownerFilter}
+          setOwnerFilter={setOwnerFilter}
+          ownerOptions={ownerOptions}
+          onEdit={handleOpenEdit}
+          onDelete={currentRole === "admin" ? handleDeleteLead : null}
+          onQuickUpdate={handleQuickUpdate}
+          onExportCSV={currentRole === "admin" ? exportCsv : null}
+        />
+
+        <LeadForm
+          isOpen={showForm}
+          editingLead={editingLead}
+          onClose={handleCloseForm}
+          onSave={handleSaveLead}
+          saving={saving}
         />
       </div>
-
-      <LeadTable
-        leads={filteredLeads}
-        loading={loading}
-        search={search}
-        setSearch={setSearch}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        priorityFilter={priorityFilter}
-        setPriorityFilter={setPriorityFilter}
-        quickFilter={quickFilter}
-        setQuickFilter={setQuickFilter}
-        ownerFilter={ownerFilter}
-        setOwnerFilter={setOwnerFilter}
-        ownerOptions={ownerOptions}
-        onEdit={handleOpenEdit}
-        onDelete={currentRole === "admin" ? handleDeleteLead : null}
-        onQuickUpdate={handleQuickUpdate}
-        onExportCSV={currentRole === "admin" ? exportCsv : null}
-      />
-
-      <LeadForm
-        isOpen={showForm}
-        editingLead={editingLead}
-        onClose={handleCloseForm}
-        onSave={handleSaveLead}
-        saving={saving}
-      />
     </div>
   );
 }
 
 const styles = {
   page: {
-    padding: 14,
+    padding: 12,
+  },
+  container: {
+    maxWidth: 1400,
+    margin: "0 auto",
   },
   roleBox: {
     background: "#1d4ed8",
@@ -713,7 +749,6 @@ const styles = {
     borderRadius: 12,
     marginBottom: 16,
     fontWeight: 700,
-    display: "inline-block",
   },
   errorBox: {
     background: "#7f1d1d",
@@ -722,6 +757,7 @@ const styles = {
     borderRadius: 12,
     marginBottom: 16,
     border: "1px solid rgba(255,255,255,0.1)",
+    lineHeight: 1.6,
   },
   successBox: {
     background: "#14532d",
@@ -730,6 +766,7 @@ const styles = {
     borderRadius: 12,
     marginBottom: 16,
     border: "1px solid rgba(255,255,255,0.1)",
+    lineHeight: 1.6,
   },
   activityBox: {
     background: "#0a1a36",
@@ -741,9 +778,7 @@ const styles = {
   activityHeader: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    gap: 16,
-    flexWrap: "wrap",
+    gap: 12,
     marginBottom: 12,
   },
   activityTitle: {
@@ -760,8 +795,9 @@ const styles = {
     background: "#233452",
     color: "#fff",
     borderRadius: 8,
-    padding: "8px 12px",
+    padding: "10px 12px",
     cursor: "pointer",
+    fontWeight: 700,
   },
   activityList: {
     display: "grid",
@@ -783,14 +819,15 @@ const styles = {
     fontSize: 14,
     fontWeight: 700,
     marginBottom: 4,
+    lineHeight: 1.6,
   },
   activityTime: {
     fontSize: 12,
     color: "#c9d8f5",
+    lineHeight: 1.5,
   },
   topActionsRow: {
     display: "flex",
-    flexWrap: "wrap",
     gap: 10,
     marginBottom: 12,
   },
@@ -799,7 +836,7 @@ const styles = {
     background: "#2563eb",
     color: "#fff",
     borderRadius: 8,
-    padding: "10px 16px",
+    padding: "12px 16px",
     cursor: "pointer",
     fontWeight: 700,
   },
@@ -808,7 +845,7 @@ const styles = {
     background: "#16a34a",
     color: "#fff",
     borderRadius: 8,
-    padding: "10px 16px",
+    padding: "12px 16px",
     cursor: "pointer",
     fontWeight: 700,
   },
