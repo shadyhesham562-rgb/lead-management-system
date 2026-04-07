@@ -19,8 +19,17 @@ export default function Login() {
   const [confirmResetPassword, setConfirmResetPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth <= 768 : false
+  );
 
   useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= 768);
+    }
+
+    window.addEventListener("resize", handleResize);
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
@@ -31,6 +40,7 @@ export default function Login() {
     });
 
     return () => {
+      window.removeEventListener("resize", handleResize);
       subscription.unsubscribe();
     };
   }, []);
@@ -159,24 +169,55 @@ export default function Login() {
       <div style={styles.bgGlowThree} />
       <div style={styles.gridOverlay} />
 
-      <div style={styles.wrapper}>
-        <div style={styles.leftSide}>
-          <div style={styles.brandRow}>
-            <div style={styles.logo}>INN</div>
+      <div
+        style={{
+          ...styles.wrapper,
+          flexDirection: isMobile ? "column" : "row",
+          paddingTop: isMobile ? 16 : 0,
+          paddingBottom: isMobile ? 16 : 0,
+        }}
+      >
+        <div
+          style={{
+            ...styles.leftSide,
+            width: isMobile ? "100%" : "auto",
+            order: isMobile ? 2 : 1,
+          }}
+        >
+          <div
+            style={{
+              ...styles.brandRow,
+              justifyContent: isMobile ? "center" : "flex-start",
+              textAlign: isMobile ? "center" : "left",
+            }}
+          >
+            <div style={{ ...styles.logo, fontSize: isMobile ? 52 : 68 }}>INN</div>
 
             <div>
-              <div style={styles.brandName}>INN CRM</div>
+              <div style={{ ...styles.brandName, fontSize: isMobile ? 28 : 34 }}>
+                INN CRM
+              </div>
               <div style={styles.brandSub}>
                 Private lead management workspace for your team
               </div>
             </div>
           </div>
 
-          <div style={styles.heroCard}>
+          <div
+            style={{
+              ...styles.heroCard,
+              padding: isMobile ? 22 : 34,
+            }}
+          >
             <div style={styles.heroTopLine} />
             <div style={styles.badge}>Internal Team Portal</div>
 
-            <h1 style={styles.heroTitle}>
+            <h1
+              style={{
+                ...styles.heroTitle,
+                fontSize: isMobile ? 28 : 40,
+              }}
+            >
               A premium and focused CRM experience for secure daily sales work.
             </h1>
 
@@ -191,7 +232,14 @@ export default function Login() {
               <div style={styles.pill}>Smooth Follow-up</div>
             </div>
 
-            <div style={styles.featureGrid}>
+            <div
+              style={{
+                ...styles.featureGrid,
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "repeat(2, minmax(0, 1fr))",
+              }}
+            >
               <div style={styles.featureCard}>
                 <div style={styles.featureIcon} />
                 <div>
@@ -235,13 +283,30 @@ export default function Login() {
           </div>
         </div>
 
-        <div style={styles.rightSide}>
-          <div style={styles.loginCard}>
+        <div
+          style={{
+            ...styles.rightSide,
+            width: isMobile ? "100%" : "auto",
+            order: isMobile ? 1 : 2,
+          }}
+        >
+          <div
+            style={{
+              ...styles.loginCard,
+              maxWidth: isMobile ? "100%" : 450,
+              padding: isMobile ? 22 : 32,
+            }}
+          >
             <div style={styles.loginCardGlow} />
             <div style={styles.loginTopLine} />
             <div style={styles.loginMiniLogo}>INN</div>
 
-            <h2 style={styles.loginTitle}>
+            <h2
+              style={{
+                ...styles.loginTitle,
+                fontSize: isMobile ? 30 : 36,
+              }}
+            >
               {mode === "login"
                 ? "Welcome Back"
                 : mode === "forgot"
@@ -379,7 +444,7 @@ const styles = {
     background:
       "linear-gradient(135deg, #050d1b 0%, #08162c 28%, #091e3d 58%, #030914 100%)",
     color: "#ffffff",
-    padding: 24,
+    padding: 16,
   },
   bgGlowOne: {
     position: "absolute",
@@ -426,20 +491,21 @@ const styles = {
   wrapper: {
     position: "relative",
     zIndex: 1,
-    minHeight: "calc(100vh - 48px)",
+    minHeight: "calc(100vh - 32px)",
     display: "flex",
-    flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 32,
+    gap: 24,
+    maxWidth: 1400,
+    margin: "0 auto",
   },
   leftSide: {
     flex: "1 1 720px",
-    minWidth: 320,
+    minWidth: 0,
   },
   rightSide: {
     flex: "0 1 460px",
-    minWidth: 320,
+    minWidth: 0,
     display: "flex",
     justifyContent: "center",
   },
@@ -448,10 +514,9 @@ const styles = {
     alignItems: "center",
     gap: 20,
     flexWrap: "wrap",
-    marginBottom: 30,
+    marginBottom: 24,
   },
   logo: {
-    fontSize: 68,
     fontWeight: 900,
     letterSpacing: "6px",
     lineHeight: 1,
@@ -459,25 +524,24 @@ const styles = {
     textShadow: "0 10px 32px rgba(59,130,246,0.24)",
   },
   brandName: {
-    fontSize: 34,
     fontWeight: 900,
     marginBottom: 6,
   },
   brandSub: {
     fontSize: 16,
     color: "#c8d7f7",
+    lineHeight: 1.6,
   },
   heroCard: {
     maxWidth: 860,
     position: "relative",
-    background:
-      "linear-gradient(160deg, rgba(8,27,55,0.86), rgba(5,18,37,0.78))",
+    background: "linear-gradient(160deg, rgba(8,27,55,0.86), rgba(5,18,37,0.78))",
     border: "1px solid rgba(255,255,255,0.10)",
     borderRadius: 30,
-    padding: 34,
     boxShadow: "0 30px 90px rgba(0,0,0,0.32)",
     backdropFilter: "blur(12px)",
     overflow: "hidden",
+    boxSizing: "border-box",
   },
   heroTopLine: {
     position: "absolute",
@@ -502,9 +566,8 @@ const styles = {
   },
   heroTitle: {
     margin: 0,
-    fontSize: 40,
     fontWeight: 900,
-    lineHeight: 1.22,
+    lineHeight: 1.25,
     maxWidth: 730,
   },
   heroText: {
@@ -533,7 +596,6 @@ const styles = {
   },
   featureGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: 16,
   },
   featureCard: {
@@ -567,16 +629,14 @@ const styles = {
   },
   loginCard: {
     width: "100%",
-    maxWidth: 450,
     position: "relative",
-    background:
-      "linear-gradient(180deg, rgba(8,25,52,0.88), rgba(4,14,30,0.90))",
+    background: "linear-gradient(180deg, rgba(8,25,52,0.88), rgba(4,14,30,0.90))",
     border: "1px solid rgba(255,255,255,0.10)",
     borderRadius: 30,
-    padding: 32,
     boxShadow: "0 30px 90px rgba(0,0,0,0.36)",
     backdropFilter: "blur(14px)",
     overflow: "hidden",
+    boxSizing: "border-box",
   },
   loginCardGlow: {
     position: "absolute",
@@ -607,7 +667,6 @@ const styles = {
   },
   loginTitle: {
     margin: 0,
-    fontSize: 36,
     fontWeight: 900,
     lineHeight: 1.12,
   },
