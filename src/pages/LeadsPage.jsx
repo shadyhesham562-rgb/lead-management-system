@@ -4,6 +4,7 @@ import DashboardCards from "../components/DashboardCards";
 import LeadForm from "../components/LeadForm";
 import LeadTable from "../components/LeadTable";
 import TeamManagement from "../components/TeamManagement";
+import WelcomeGuide from "../components/WelcomeGuide";
 import { supabase } from "../supabaseClient.js";
 
 const ACTIVITY_KEY = "crm_activity_v2";
@@ -617,6 +618,11 @@ export default function LeadsPage() {
             }
             window.location.reload();
           }}
+        />
+
+        <WelcomeGuide
+          currentRole={currentRole}
+          displayName={currentUserName}
         />
 
         <div
