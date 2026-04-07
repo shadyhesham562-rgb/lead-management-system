@@ -13,9 +13,27 @@ function getTodayString() {
   return new Date().toISOString().split("T")[0];
 }
 
+function dbToLead(row, ownersMap = {}) {
+  return {
+    id: row.id,
+    company: row.company || "",
+    company_type: row.company_type || "",
+    contact: row.contact || "",
+    phone: row.phone || "",
+    status: row.status || "New",
+    priority: row.priority || "Warm",
+    notes: row.notes || "",
+    lastContact: row.last_contact || "",
+    nextFollowUp: row.next_follow_up || "",
+    user_id: row.user_id || null,
+    ownerName: ownersMap[row.user_id] || "Unknown",
+  };
+}
+
 function buildPayload(leadData, ownerUserId) {
   return {
     company: leadData.company?.trim() || "",
+    company_type: leadData.company_type || "",
     contact: leadData.contact?.trim() || "",
     phone: leadData.phone?.trim() || "",
     status: leadData.status || "New",
@@ -93,6 +111,7 @@ function parseCsvText(text) {
 
 function mapCsvRowToPayload(row, userId) {
   const company = row.company || "";
+  const companyType = row.companytype || "";
   const contact = row.contact || "";
   const phone = row.phone || "";
   const status = row.status || "New";
@@ -224,35 +243,36 @@ export default function LeadsPage() {
     setLoading(true);
     setErrorMessage("");
 
-    const context = await getViewerContext();
+    try {
+      const context = await getViewerContext();
 
-    if (!context) {
-      setCurrentRole("sales");
-      setCurrentUserName("User");
-      setLeads([]);
-      setLoading(false);
-      return;
-    }
+      if (!context) {
+        setCurrentRole("sales");
+        setCurrentUserName("User");
+        setLeads([]);
+        return;
+      }
 
-    setCurrentRole(context.role);
-    setCurrentUserName(context.fullName || "User");
+      setCurrentRole(context.role);
+      setCurrentUserName(context.fullName || "User");
 
-    const owners = await loadOwnersMap();
+      const owners = await loadOwnersMap();
 
-    const { data, error } = await supabase
-      .from("leads")
-      .select("*")
-      .order("id", { ascending: false });
+      const { data, error } = await supabase
+        .from("leads")
+        .select("*")
+        .order("id", { ascending: false });
 
-    if (error) {
+      if (error) throw error;
+
+      setLeads((data || []).map((row) => dbToLead(row, owners)));
+    } catch (error) {
       console.error("Load leads error:", error);
-      setErrorMessage(error.message);
+      setErrorMessage(error.message || "Failed to load leads");
+      setLeads([]);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setLeads((data || []).map((row) => dbToLead(row, owners)));
-    setLoading(false);
   }
 
   function addActivity(text) {
@@ -519,8 +539,8 @@ export default function LeadsPage() {
     const today = getTodayString();
 
     return leads.filter((lead) => {
-const searchText =
-  `${lead.company} ${lead.company_type} ${lead.contact} ${lead.phone} ${lead.ownerName}`.toLowerCase();
+      const searchText =
+        `${lead.company} ${lead.company_type} ${lead.contact} ${lead.phone} ${lead.ownerName}`.toLowerCase();
 
       const matchesSearch = searchText.includes(search.toLowerCase());
       const matchesStatus =
@@ -551,6 +571,7 @@ const searchText =
   function exportCsv() {
     const headers = [
       "Company",
+      "Company Type",
       "Contact",
       "Phone",
       "Status",
@@ -563,6 +584,7 @@ const searchText =
 
     const rows = filteredLeads.map((lead) => [
       lead.company || "",
+      lead.company_type || "",
       lead.contact || "",
       lead.phone || "",
       lead.status || "",
