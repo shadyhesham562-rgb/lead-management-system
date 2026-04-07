@@ -1,3 +1,15 @@
+import { useEffect, useMemo, useState } from "react";
+
+function EmptyStateBox({ title, text }) {
+  return (
+    <div style={styles.emptyStateBox}>
+      <div style={styles.emptyStateIcon}>•</div>
+      <div style={styles.emptyStateTitle}>{title}</div>
+      <div style={styles.emptyStateText}>{text}</div>
+    </div>
+  );
+}
+
 export default function LeadTable({
   leads = [],
   loading = false,
@@ -17,13 +29,42 @@ export default function LeadTable({
   onQuickUpdate,
   onExportCSV,
 }) {
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const today = new Date().toISOString().split("T")[0];
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= 768);
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const hotCount = leads.filter((lead) => lead.priority === "Hot").length;
   const todayCount = leads.filter((lead) => lead.nextFollowUp === today).length;
   const overdueCount = leads.filter(
     (lead) => lead.nextFollowUp && lead.nextFollowUp < today
   ).length;
+
+  const hasActiveFilters =
+    search.trim() !== "" ||
+    statusFilter !== "All" ||
+    priorityFilter !== "All" ||
+    quickFilter !== "all" ||
+    ownerFilter !== "All";
+
+  const emptyTitle = hasActiveFilters ? "No matching leads found" : "No leads yet";
+
+  const emptyText = hasActiveFilters
+    ? "Try changing the search or filters to see more results."
+    : "Start by adding your first lead to begin tracking follow-ups.";
+
+  const quickFilterLabel = useMemo(() => {
+    if (quickFilter === "today") return "Today";
+    if (quickFilter === "overdue") return "Overdue";
+    return "All";
+  }, [quickFilter]);
 
   function clearFilters() {
     setSearch?.("");
@@ -99,6 +140,85 @@ export default function LeadTable({
     return <span>{lead.nextFollowUp}</span>;
   }
 
+  function renderMobileCard(lead) {
+    return (
+      <div key={lead.id} style={styles.mobileCard}>
+        <div style={styles.mobileTop}>
+          <div>
+            <div style={styles.mobileCompany}>{lead.company || "-"}</div>
+            <div style={styles.mobileContact}>{lead.contact || "-"}</div>
+          </div>
+
+          <div style={styles.mobileOwnerBox}>{lead.ownerName || "-"}</div>
+        </div>
+
+        <div style={styles.mobileInfoGrid}>
+          <div style={styles.mobileInfoItem}>
+            <span style={styles.mobileInfoLabel}>Phone</span>
+            <span style={styles.mobileInfoValue}>{lead.phone || "-"}</span>
+          </div>
+
+          <div style={styles.mobileInfoItem}>
+            <span style={styles.mobileInfoLabel}>Last Contact</span>
+            <span style={styles.mobileInfoValue}>{lead.lastContact || "-"}</span>
+          </div>
+
+          <div style={styles.mobileInfoItem}>
+            <span style={styles.mobileInfoLabel}>Follow-up</span>
+            <span style={styles.mobileInfoValue}>{renderFollowUpCell(lead)}</span>
+          </div>
+        </div>
+
+        <div style={styles.mobileSelects}>
+          <select
+            style={styles.mobileSelect}
+            value={lead.status || "New"}
+            onChange={(e) => onQuickUpdate?.(lead.id, "status", e.target.value)}
+          >
+            <option value="New">New</option>
+            <option value="Interested">Interested</option>
+            <option value="Follow Up">Follow Up</option>
+          </select>
+
+          <select
+            style={styles.mobileSelect}
+            value={lead.priority || "Warm"}
+            onChange={(e) => onQuickUpdate?.(lead.id, "priority", e.target.value)}
+          >
+            <option value="Hot">Hot</option>
+            <option value="Warm">Warm</option>
+            <option value="Cold">Cold</option>
+          </select>
+        </div>
+
+        <div style={styles.mobileNotesBox}>
+          <span style={styles.mobileInfoLabel}>Notes</span>
+          <div style={styles.mobileNotesText}>{lead.notes || "-"}</div>
+        </div>
+
+        <div style={styles.mobileActions}>
+          <button style={styles.editBtn} onClick={() => onEdit?.(lead)}>
+            Edit
+          </button>
+
+          <button style={styles.whatsBtn} onClick={() => openWhatsApp(lead.phone)}>
+            WhatsApp
+          </button>
+
+          <button style={styles.callBtn} onClick={() => makeCall(lead.phone)}>
+            Call
+          </button>
+
+          {onDelete ? (
+            <button style={styles.deleteBtn} onClick={() => onDelete(lead.id)}>
+              Delete
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.wrapper}>
       <div style={styles.quickFilterRow}>
@@ -117,9 +237,7 @@ export default function LeadTable({
         </button>
 
         <button
-          style={
-            quickFilter === "overdue" ? styles.quickBtnOverdue : styles.quickBtn
-          }
+          style={quickFilter === "overdue" ? styles.quickBtnOverdue : styles.quickBtn}
           onClick={() => setQuickFilter?.("overdue")}
         >
           Overdue
@@ -187,38 +305,47 @@ export default function LeadTable({
         <div style={styles.summaryChipOverdue}>Overdue: {overdueCount}</div>
       </div>
 
-      <div style={styles.tableWrap}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={styles.th}>Company</th>
-              <th style={styles.th}>Contact</th>
-              <th style={styles.th}>Phone</th>
-              <th style={styles.th}>Owner</th>
-              <th style={styles.th}>Status</th>
-              <th style={styles.th}>Priority</th>
-              <th style={styles.th}>Last Contact</th>
-              <th style={styles.th}>Next Follow-up</th>
-              <th style={styles.th}>Notes</th>
-              <th style={styles.th}>Action</th>
-            </tr>
-          </thead>
+      {hasActiveFilters ? (
+        <div style={styles.filterSummaryBox}>
+          <div style={styles.filterSummaryTitle}>Current filters</div>
+          <div style={styles.filterSummaryRow}>
+            <span style={styles.filterPill}>Quick: {quickFilterLabel}</span>
+            <span style={styles.filterPill}>Owner: {ownerFilter}</span>
+            <span style={styles.filterPill}>Status: {statusFilter}</span>
+            <span style={styles.filterPill}>Priority: {priorityFilter}</span>
+            {search.trim() ? (
+              <span style={styles.filterPill}>Search: {search.trim()}</span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
-          <tbody>
-            {loading ? (
+      {loading ? (
+        <div style={styles.emptyBox}>Loading leads...</div>
+      ) : leads.length === 0 ? (
+        <EmptyStateBox title={emptyTitle} text={emptyText} />
+      ) : isMobile ? (
+        <div style={styles.mobileList}>{leads.map(renderMobileCard)}</div>
+      ) : (
+        <div style={styles.tableWrap}>
+          <table style={styles.table}>
+            <thead>
               <tr>
-                <td style={styles.emptyCell} colSpan={10}>
-                  Loading...
-                </td>
+                <th style={styles.th}>Company</th>
+                <th style={styles.th}>Contact</th>
+                <th style={styles.th}>Phone</th>
+                <th style={styles.th}>Owner</th>
+                <th style={styles.th}>Status</th>
+                <th style={styles.th}>Priority</th>
+                <th style={styles.th}>Last Contact</th>
+                <th style={styles.th}>Next Follow-up</th>
+                <th style={styles.th}>Notes</th>
+                <th style={styles.th}>Action</th>
               </tr>
-            ) : leads.length === 0 ? (
-              <tr>
-                <td style={styles.emptyCell} colSpan={10}>
-                  No leads found
-                </td>
-              </tr>
-            ) : (
-              leads.map((lead) => (
+            </thead>
+
+            <tbody>
+              {leads.map((lead) => (
                 <tr key={lead.id} style={getRowStyle(lead)}>
                   <td style={styles.td}>{lead.company || "-"}</td>
                   <td style={styles.td}>{lead.contact || "-"}</td>
@@ -229,9 +356,7 @@ export default function LeadTable({
                     <select
                       style={styles.inlineSelect}
                       value={lead.status || "New"}
-                      onChange={(e) =>
-                        onQuickUpdate?.(lead.id, "status", e.target.value)
-                      }
+                      onChange={(e) => onQuickUpdate?.(lead.id, "status", e.target.value)}
                     >
                       <option value="New">New</option>
                       <option value="Interested">Interested</option>
@@ -243,9 +368,7 @@ export default function LeadTable({
                     <select
                       style={styles.inlineSelect}
                       value={lead.priority || "Warm"}
-                      onChange={(e) =>
-                        onQuickUpdate?.(lead.id, "priority", e.target.value)
-                      }
+                      onChange={(e) => onQuickUpdate?.(lead.id, "priority", e.target.value)}
                     >
                       <option value="Hot">Hot</option>
                       <option value="Warm">Warm</option>
@@ -259,43 +382,31 @@ export default function LeadTable({
 
                   <td style={styles.td}>
                     <div style={styles.actions}>
-                      <button
-                        style={styles.editBtn}
-                        onClick={() => onEdit?.(lead)}
-                      >
+                      <button style={styles.editBtn} onClick={() => onEdit?.(lead)}>
                         Edit
                       </button>
 
-                      <button
-                        style={styles.whatsBtn}
-                        onClick={() => openWhatsApp(lead.phone)}
-                      >
+                      <button style={styles.whatsBtn} onClick={() => openWhatsApp(lead.phone)}>
                         WhatsApp
                       </button>
 
-                      <button
-                        style={styles.callBtn}
-                        onClick={() => makeCall(lead.phone)}
-                      >
+                      <button style={styles.callBtn} onClick={() => makeCall(lead.phone)}>
                         Call
                       </button>
 
                       {onDelete ? (
-                        <button
-                          style={styles.deleteBtn}
-                          onClick={() => onDelete(lead.id)}
-                        >
+                        <button style={styles.deleteBtn} onClick={() => onDelete(lead.id)}>
                           Delete
                         </button>
                       ) : null}
                     </div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -432,6 +543,32 @@ const styles = {
     fontSize: 13,
     fontWeight: 700,
   },
+  filterSummaryBox: {
+    background: "#0a1a36",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+  },
+  filterSummaryTitle: {
+    color: "#fff",
+    fontWeight: 800,
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  filterSummaryRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  filterPill: {
+    background: "#162845",
+    color: "#dce7ff",
+    borderRadius: 999,
+    padding: "7px 10px",
+    fontSize: 12,
+    fontWeight: 700,
+  },
   tableWrap: {
     width: "100%",
     overflowX: "auto",
@@ -463,12 +600,6 @@ const styles = {
     fontSize: 14,
     verticalAlign: "middle",
   },
-  emptyCell: {
-    padding: "20px",
-    textAlign: "center",
-    color: "#c9d8f5",
-    fontSize: 14,
-  },
   inlineSelect: {
     border: "1px solid rgba(255,255,255,0.10)",
     background: "#0d1c37",
@@ -490,6 +621,7 @@ const styles = {
     padding: "4px 8px",
     fontSize: 11,
     fontWeight: 700,
+    display: "inline-flex",
   },
   overdueBadge: {
     background: "#dc2626",
@@ -498,18 +630,147 @@ const styles = {
     padding: "4px 8px",
     fontSize: 11,
     fontWeight: 700,
+    display: "inline-flex",
   },
   actions: {
     display: "flex",
     flexWrap: "wrap",
     gap: 8,
   },
+  emptyBox: {
+    border: "1px dashed rgba(255,255,255,0.14)",
+    borderRadius: 14,
+    padding: 18,
+    color: "#c9d8f5",
+    textAlign: "center",
+    background: "#07142c",
+  },
+  emptyStateBox: {
+    border: "1px dashed rgba(255,255,255,0.14)",
+    borderRadius: 18,
+    padding: "28px 20px",
+    color: "#c9d8f5",
+    textAlign: "center",
+    background: "linear-gradient(180deg, #07142c, #0a1a36)",
+  },
+  emptyStateIcon: {
+    width: 56,
+    height: 56,
+    margin: "0 auto 14px",
+    borderRadius: 999,
+    background: "#162845",
+    color: "#8db8ff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 28,
+    fontWeight: 900,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    color: "#fff",
+    fontWeight: 800,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: "#c9d8f5",
+    lineHeight: 1.7,
+    maxWidth: 520,
+    margin: "0 auto",
+  },
+  mobileList: {
+    display: "grid",
+    gap: 12,
+  },
+  mobileCard: {
+    background: "#07142c",
+    border: "1px solid rgba(255,255,255,0.10)",
+    borderRadius: 16,
+    padding: 14,
+    display: "grid",
+    gap: 12,
+  },
+  mobileTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  mobileCompany: {
+    fontSize: 16,
+    fontWeight: 800,
+    color: "#fff",
+    marginBottom: 4,
+  },
+  mobileContact: {
+    fontSize: 13,
+    color: "#c9d8f5",
+  },
+  mobileOwnerBox: {
+    background: "#162845",
+    color: "#fff",
+    borderRadius: 999,
+    padding: "6px 10px",
+    fontSize: 12,
+    fontWeight: 700,
+    whiteSpace: "nowrap",
+  },
+  mobileInfoGrid: {
+    display: "grid",
+    gap: 10,
+  },
+  mobileInfoItem: {
+    display: "grid",
+    gap: 4,
+  },
+  mobileInfoLabel: {
+    fontSize: 11,
+    color: "#8ea9d6",
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.4px",
+  },
+  mobileInfoValue: {
+    fontSize: 14,
+    color: "#fff",
+  },
+  mobileSelects: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 10,
+  },
+  mobileSelect: {
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "#0d1c37",
+    color: "#fff",
+    borderRadius: 10,
+    padding: "10px 12px",
+    outline: "none",
+  },
+  mobileNotesBox: {
+    display: "grid",
+    gap: 6,
+  },
+  mobileNotesText: {
+    color: "#fff",
+    fontSize: 14,
+    lineHeight: 1.5,
+    background: "#0d1c37",
+    borderRadius: 10,
+    padding: "10px 12px",
+  },
+  mobileActions: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 10,
+  },
   editBtn: {
     border: "none",
     background: "#2563eb",
     color: "#fff",
     borderRadius: 8,
-    padding: "8px 12px",
+    padding: "10px 12px",
     cursor: "pointer",
     fontWeight: 700,
   },
@@ -518,7 +779,7 @@ const styles = {
     background: "#16a34a",
     color: "#fff",
     borderRadius: 8,
-    padding: "8px 12px",
+    padding: "10px 12px",
     cursor: "pointer",
     fontWeight: 700,
   },
@@ -527,7 +788,7 @@ const styles = {
     background: "#9333ea",
     color: "#fff",
     borderRadius: 8,
-    padding: "8px 12px",
+    padding: "10px 12px",
     cursor: "pointer",
     fontWeight: 700,
   },
@@ -536,7 +797,7 @@ const styles = {
     background: "#dc2626",
     color: "#fff",
     borderRadius: 8,
-    padding: "8px 12px",
+    padding: "10px 12px",
     cursor: "pointer",
     fontWeight: 700,
   },
