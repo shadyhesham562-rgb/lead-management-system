@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 
 export default function Header({ onLogout, displayName = "User" }) {
@@ -7,6 +7,18 @@ export default function Header({ onLogout, displayName = "User" }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState("");
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth <= 768 : false
+  );
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth <= 768);
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const initials = useMemo(() => {
     return displayName
@@ -64,21 +76,46 @@ export default function Header({ onLogout, displayName = "User" }) {
 
   return (
     <>
-      <div style={styles.header}>
-        <div style={styles.leftSide}>
-          <div style={styles.logo}>INN</div>
+      <div
+        style={{
+          ...styles.header,
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "stretch" : "center",
+        }}
+      >
+        <div
+          style={{
+            ...styles.leftSide,
+            justifyContent: isMobile ? "space-between" : "flex-start",
+            width: isMobile ? "100%" : "auto",
+          }}
+        >
+          <div style={styles.brandGroup}>
+            <div style={styles.logo}>INN</div>
 
-          <div>
-            <div style={styles.title}>Lead Management System</div>
-            <div style={styles.subtitle}>CRM Dashboard for Sales Follow-up</div>
+            <div>
+              <div style={styles.title}>Lead Management System</div>
+              <div style={styles.subtitle}>CRM Dashboard for Sales Follow-up</div>
+            </div>
           </div>
+
+          {isMobile ? <div style={styles.avatar}>{initials || "U"}</div> : null}
         </div>
 
-        <div style={styles.rightSide}>
-          <div style={styles.nameTag}>{displayName}</div>
+        <div
+          style={{
+            ...styles.rightSide,
+            width: isMobile ? "100%" : "auto",
+            flexDirection: isMobile ? "column" : "row",
+            alignItems: isMobile ? "stretch" : "center",
+          }}
+        >
+          <div style={{ ...styles.nameTag, width: isMobile ? "100%" : "auto" }}>
+            {displayName}
+          </div>
 
           <button
-            style={styles.secondaryBtn}
+            style={{ ...styles.secondaryBtn, width: isMobile ? "100%" : "auto" }}
             onClick={() => {
               setShowPasswordBox(true);
               setPasswordMessage("");
@@ -89,11 +126,14 @@ export default function Header({ onLogout, displayName = "User" }) {
             Change Password
           </button>
 
-          <button style={styles.logoutBtn} onClick={onLogout}>
+          <button
+            style={{ ...styles.logoutBtn, width: isMobile ? "100%" : "auto" }}
+            onClick={onLogout}
+          >
             Logout
           </button>
 
-          <div style={styles.avatar}>{initials || "U"}</div>
+          {!isMobile ? <div style={styles.avatar}>{initials || "U"}</div> : null}
         </div>
       </div>
 
@@ -164,9 +204,7 @@ const styles = {
   header: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    gap: 16,
-    flexWrap: "wrap",
+    gap: 14,
     marginBottom: 18,
     padding: "14px 16px",
     borderRadius: 18,
@@ -176,11 +214,17 @@ const styles = {
   leftSide: {
     display: "flex",
     alignItems: "center",
-    gap: 16,
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  brandGroup: {
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
     flexWrap: "wrap",
   },
   logo: {
-    fontSize: 38,
+    fontSize: 34,
     fontWeight: 900,
     letterSpacing: "4px",
     color: "#fff",
@@ -190,15 +234,16 @@ const styles = {
     fontSize: 18,
     fontWeight: 800,
     color: "#fff",
+    lineHeight: 1.3,
   },
   subtitle: {
     marginTop: 4,
     fontSize: 13,
     color: "#c9d8f5",
+    lineHeight: 1.5,
   },
   rightSide: {
     display: "flex",
-    alignItems: "center",
     gap: 10,
     flexWrap: "wrap",
   },
@@ -208,6 +253,8 @@ const styles = {
     borderRadius: 10,
     padding: "10px 12px",
     fontWeight: 700,
+    boxSizing: "border-box",
+    textAlign: "center",
   },
   secondaryBtn: {
     border: "1px solid rgba(255,255,255,0.10)",
@@ -217,6 +264,7 @@ const styles = {
     padding: "10px 14px",
     cursor: "pointer",
     fontWeight: 700,
+    boxSizing: "border-box",
   },
   logoutBtn: {
     border: "none",
@@ -226,6 +274,7 @@ const styles = {
     padding: "10px 14px",
     cursor: "pointer",
     fontWeight: 700,
+    boxSizing: "border-box",
   },
   avatar: {
     width: 42,
@@ -238,6 +287,7 @@ const styles = {
     justifyContent: "center",
     fontWeight: 800,
     fontSize: 13,
+    flexShrink: 0,
   },
   overlay: {
     position: "fixed",
@@ -257,6 +307,7 @@ const styles = {
     borderRadius: 18,
     padding: 22,
     boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+    boxSizing: "border-box",
   },
   modalTitle: {
     fontSize: 22,
@@ -303,6 +354,7 @@ const styles = {
     justifyContent: "flex-end",
     gap: 10,
     marginTop: 6,
+    flexWrap: "wrap",
   },
   cancelBtn: {
     border: "1px solid rgba(255,255,255,0.10)",
