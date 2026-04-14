@@ -13,20 +13,20 @@ function getTodayString() {
   return new Date().toISOString().split("T")[0];
 }
 
-function buildPayload(leadData, ownerUserId) {
-  return {
-    company: leadData.company?.trim() || "",
-    company_type: leadData.company_type || "",
-    contact: leadData.contact?.trim() || "",
-    phone: leadData.phone?.trim() || "",
-    status: leadData.status || "New",
-    priority: leadData.priority || "Warm",
-    notes: leadData.notes?.trim() || "",
-    last_contact: leadData.lastContact || null,
-    next_follow_up: leadData.nextFollowUp || null,
-    user_id: ownerUserId,
-  };
-}
+// function buildPayload(leadData, ownerUserId) {
+//   return {
+//     company: leadData.company?.trim() || "",
+//     company_type: leadData.company_type || "",
+//     contact: leadData.contact?.trim() || "",
+//     phone: leadData.phone?.trim() || "",
+//     status: leadData.status || "New",
+//     priority: leadData.priority || "Warm",
+//     notes: leadData.notes?.trim() || "",
+//     last_contact: leadData.lastContact || null,
+//     next_follow_up: leadData.nextFollowUp || null,
+//     user_id: ownerUserId,
+//   };
+// }
 
 function buildPayload(leadData, ownerUserId) {
   return {
