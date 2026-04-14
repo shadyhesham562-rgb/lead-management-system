@@ -13,20 +13,18 @@ function getTodayString() {
   return new Date().toISOString().split("T")[0];
 }
 
-function dbToLead(row, ownersMap = {}) {
+function buildPayload(leadData, ownerUserId) {
   return {
-    id: row.id,
-    company: row.company || "",
-    company_type: row.company_type || "",
-    contact: row.contact || "",
-    phone: row.phone || "",
-    status: row.status || "New",
-    priority: row.priority || "Warm",
-    notes: row.notes || "",
-    lastContact: row.last_contact || "",
-    nextFollowUp: row.next_follow_up || "",
-    user_id: row.user_id || null,
-    ownerName: ownersMap[row.user_id] || "Unknown",
+    company: leadData.company?.trim() || "",
+    company_type: leadData.company_type || "",
+    contact: leadData.contact?.trim() || "",
+    phone: leadData.phone?.trim() || "",
+    status: leadData.status || "New",
+    priority: leadData.priority || "Warm",
+    notes: leadData.notes?.trim() || "",
+    last_contact: leadData.lastContact || null,
+    next_follow_up: leadData.nextFollowUp || null,
+    user_id: ownerUserId,
   };
 }
 

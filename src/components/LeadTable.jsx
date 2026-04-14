@@ -328,83 +328,85 @@ export default function LeadTable({
         <div style={styles.mobileList}>{leads.map(renderMobileCard)}</div>
       ) : (
         <div style={styles.tableWrap}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.th}>Company</th>
-                <th style={styles.th}>Contact</th>
-                <th style={styles.th}>Phone</th>
-                <th style={styles.th}>Owner</th>
-                <th style={styles.th}>Status</th>
-                <th style={styles.th}>Priority</th>
-                <th style={styles.th}>Last Contact</th>
-                <th style={styles.th}>Next Follow-up</th>
-                <th style={styles.th}>Notes</th>
-                <th style={styles.th}>Action</th>
-              </tr>
-            </thead>
+         <table style={styles.table}>
+  <thead>
+    <tr>
+      <th style={styles.th}>Company</th>
+      <th style={styles.th}>Company Type</th>
+      <th style={styles.th}>Contact</th>
+      <th style={styles.th}>Phone</th>
+      <th style={styles.th}>Owner</th>
+      <th style={styles.th}>Status</th>
+      <th style={styles.th}>Priority</th>
+      <th style={styles.th}>Last Contact</th>
+      <th style={styles.th}>Next Follow-up</th>
+      <th style={styles.th}>Notes</th>
+      <th style={styles.th}>Action</th>
+    </tr>
+  </thead>
 
-            <tbody>
-              {leads.map((lead) => (
-                <tr key={lead.id} style={getRowStyle(lead)}>
-                  <td style={styles.td}>{lead.company || "-"}</td>
-                  <td style={styles.td}>{lead.contact || "-"}</td>
-                  <td style={styles.td}>{lead.phone || "-"}</td>
-                  <td style={styles.td}>{lead.ownerName || "-"}</td>
+  <tbody>
+    {leads.map((lead) => (
+      <tr key={lead.id} style={getRowStyle(lead)}>
+        <td style={styles.td}>{lead.company || "-"}</td>
+        <td style={styles.td}>{lead.company_type || "-"}</td>
+        <td style={styles.td}>{lead.contact || "-"}</td>
+        <td style={styles.td}>{lead.phone || "-"}</td>
+        <td style={styles.td}>{lead.ownerName || "-"}</td>
 
-                  <td style={styles.td}>
-                    <select
-                      style={styles.inlineSelect}
-                      value={lead.status || "New"}
-                      onChange={(e) => onQuickUpdate?.(lead.id, "status", e.target.value)}
-                    >
-                      <option value="New">New</option>
-                      <option value="Interested">Interested</option>
-                      <option value="Follow Up">Follow Up</option>
-                    </select>
-                  </td>
+        <td style={styles.td}>
+          <select
+            style={styles.inlineSelect}
+            value={lead.status || "New"}
+            onChange={(e) => onQuickUpdate?.(lead.id, "status", e.target.value)}
+          >
+            <option value="New">New</option>
+            <option value="Interested">Interested</option>
+            <option value="Follow Up">Follow Up</option>
+          </select>
+        </td>
 
-                  <td style={styles.td}>
-                    <select
-                      style={styles.inlineSelect}
-                      value={lead.priority || "Warm"}
-                      onChange={(e) => onQuickUpdate?.(lead.id, "priority", e.target.value)}
-                    >
-                      <option value="Hot">Hot</option>
-                      <option value="Warm">Warm</option>
-                      <option value="Cold">Cold</option>
-                    </select>
-                  </td>
+        <td style={styles.td}>
+          <select
+            style={styles.inlineSelect}
+            value={lead.priority || "Warm"}
+            onChange={(e) => onQuickUpdate?.(lead.id, "priority", e.target.value)}
+          >
+            <option value="Hot">Hot</option>
+            <option value="Warm">Warm</option>
+            <option value="Cold">Cold</option>
+          </select>
+        </td>
 
-                  <td style={styles.td}>{lead.lastContact || "-"}</td>
-                  <td style={styles.td}>{renderFollowUpCell(lead)}</td>
-                  <td style={styles.td}>{lead.notes || "-"}</td>
+        <td style={styles.td}>{lead.lastContact || "-"}</td>
+        <td style={styles.td}>{renderFollowUpCell(lead)}</td>
+        <td style={styles.td}>{lead.notes || "-"}</td>
 
-                  <td style={styles.td}>
-                    <div style={styles.actions}>
-                      <button style={styles.editBtn} onClick={() => onEdit?.(lead)}>
-                        Edit
-                      </button>
+        <td style={styles.td}>
+          <div style={styles.actions}>
+            <button style={styles.editBtn} onClick={() => onEdit?.(lead)}>
+              Edit
+            </button>
 
-                      <button style={styles.whatsBtn} onClick={() => openWhatsApp(lead.phone)}>
-                        WhatsApp
-                      </button>
+            <button style={styles.whatsBtn} onClick={() => openWhatsApp(lead.phone)}>
+              WhatsApp
+            </button>
 
-                      <button style={styles.callBtn} onClick={() => makeCall(lead.phone)}>
-                        Call
-                      </button>
+            <button style={styles.callBtn} onClick={() => makeCall(lead.phone)}>
+              Call
+            </button>
 
-                      {onDelete ? (
-                        <button style={styles.deleteBtn} onClick={() => onDelete(lead.id)}>
-                          Delete
-                        </button>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            {onDelete ? (
+              <button style={styles.deleteBtn} onClick={() => onDelete(lead.id)}>
+                Delete
+              </button>
+            ) : null}
+          </div>
+        </td>
+      </tr>
+    ))}
+  </tbody>
+</table>
         </div>
       )}
     </div>
