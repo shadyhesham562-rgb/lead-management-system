@@ -263,13 +263,13 @@ export default function LeadsPage() {
         .select("*")
         .order("id", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Load leads error:", error);
+        setErrorMessage(error.message);
+        return;
+      }
 
       setLeads((data || []).map((row) => dbToLead(row, owners)));
-    } catch (error) {
-      console.error("Load leads error:", error);
-      setErrorMessage(error.message || "Failed to load leads");
-      setLeads([]);
     } finally {
       setLoading(false);
     }
