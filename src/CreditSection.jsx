@@ -3,10 +3,10 @@ export default function CreditSection() {
     <section style={styles.section}>
       <div style={styles.logoWrap}>
         <img
-          src="/inn-logo.png"
-          alt="INN Agency Logo"
-          style={styles.logo}
-        />
+  src="/inn-icon.svg"
+  alt="INN Agency Logo"
+  style={styles.logo}
+/>
       </div>
 
       <div style={styles.content}>
