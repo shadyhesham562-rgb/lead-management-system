@@ -405,8 +405,45 @@ export default function LeadsPage() {
     }
   }
 
-  async function handleDeleteLead(id) {
 async function handleDeleteLead(id) {
+  setErrorMessage("");
+  setSuccessMessage("");
+
+  const context = await getViewerContext();
+
+  if (!context) {
+    setErrorMessage("You must be logged in");
+    return;
+  }
+
+  if (context.role !== "admin") {
+    setErrorMessage("Only admin can delete leads");
+    return;
+  }
+
+  const leadToDelete = leads.find((lead) => lead.id === id);
+
+  const { error } = await supabase
+    .from("leads")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.error("Delete error:", error);
+    setErrorMessage(error.message);
+    return;
+  }
+
+  setLeads((prev) => prev.filter((lead) => lead.id !== id));
+
+  addActivity(
+    `Deleted lead for ${
+      leadToDelete?.company || leadToDelete?.contact || "Unknown"
+    }`
+  );
+
+  setSuccessMessage("Lead deleted successfully");
+}
   setErrorMessage("");
   setSuccessMessage("");
 
