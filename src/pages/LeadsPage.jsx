@@ -1,3 +1,4 @@
+import CreditSection from "../components/CreditSection";
 import LeadsCharts from "../LeadsCharts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Header from "../components/Header";
@@ -760,6 +761,7 @@ async function handleDeleteLead(id) {
           onSave={handleSaveLead}
           saving={saving}
         />
+        <CreditSection />
       </div>
     </div>
   );
