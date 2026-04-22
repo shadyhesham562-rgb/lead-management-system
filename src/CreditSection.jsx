@@ -20,8 +20,8 @@ export default function CreditSection() {
           For technical support, updates, or similar project inquiries:
         </p>
 
-        <a href="mailto:YOUR-EMAIL@DOMAIN.COM" style={styles.email}>
-          YOUR-EMAIL@DOMAIN.COM
+        <a href="mailto:shadyhesham562@gmail.com" style={styles.email}>
+          shadyhesham562@gmail.com
         </a>
       </div>
     </section>
@@ -30,30 +30,29 @@ export default function CreditSection() {
 
 const styles = {
   section: {
-    background: "#071a3d",
-    border: "1px solid rgba(255,255,255,0.08)",
+    background: "#0b234f",
+    border: "1px solid rgba(255,255,255,0.10)",
     borderRadius: "20px",
-    padding: "28px 24px",
+    padding: "34px 28px",
     marginTop: "20px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: "24px",
+    gap: "28px",
     flexWrap: "wrap",
   },
   logoWrap: {
+    minWidth: "170px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    minWidth: "140px",
   },
   logo: {
-    width: "120px",
+    width: "170px",
     maxWidth: "100%",
     height: "auto",
     objectFit: "contain",
     display: "block",
-    background: "transparent",
   },
   content: {
     maxWidth: "760px",
@@ -61,29 +60,29 @@ const styles = {
     textAlign: "left",
   },
   title: {
-    margin: "0 0 10px",
-    fontSize: "24px",
+    margin: "0 0 12px",
+    fontSize: "34px",
     fontWeight: "700",
     lineHeight: "1.3",
     color: "#ffffff",
   },
   text: {
-    margin: "0 0 8px",
-    fontSize: "16px",
-    lineHeight: "1.6",
-    color: "rgba(255,255,255,0.92)",
+    margin: "0 0 10px",
+    fontSize: "21px",
+    lineHeight: "1.7",
+    color: "rgba(255,255,255,0.95)",
   },
   textSmall: {
-    margin: "0 0 8px",
-    fontSize: "15px",
-    lineHeight: "1.5",
-    color: "rgba(255,255,255,0.78)",
+    margin: "0 0 10px",
+    fontSize: "18px",
+    lineHeight: "1.6",
+    color: "rgba(255,255,255,0.82)",
   },
   email: {
     display: "inline-block",
-    marginTop: "4px",
+    marginTop: "6px",
     color: "#ffffff",
-    fontSize: "18px",
+    fontSize: "24px",
     fontWeight: "700",
     textDecoration: "none",
   },
