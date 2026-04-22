@@ -1,3 +1,4 @@
+import LeadsCharts from "../components/LeadsCharts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Header from "../components/Header";
 import DashboardCards from "../components/DashboardCards";
@@ -667,6 +668,7 @@ async function handleDeleteLead(id) {
         ) : null}
 
         <DashboardCards leads={leads} />
+        <LeadsCharts leads={leads} />
         <TeamManagement currentRole={currentRole} />
 
         <div style={styles.activityBox}>
