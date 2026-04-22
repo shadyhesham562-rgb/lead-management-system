@@ -1,4 +1,4 @@
-import LeadsCharts from "../components/LeadsCharts";
+import LeadsCharts from "../LeadsCharts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Header from "../components/Header";
 import DashboardCards from "../components/DashboardCards";
